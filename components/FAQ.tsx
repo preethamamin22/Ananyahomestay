@@ -151,7 +151,7 @@ export default function FAQ() {
             Still have questions? We're here to help!
           </p>
           <a
-            href="https://wa.me/919876543210"
+            href="https://wa.me/919482629145"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-whatsapp"

@@ -124,9 +124,9 @@ export default function Footer() {
             </h4>
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {[
-                ["Deluxe Garden Room", "₹3,500/night"],
-                ["Family Suite", "₹5,500/night"],
-                ["Cozy Standard Room", "₹2,200/night"],
+                ["Family Suite (×2)", "2 Double Beds · ₹800/person"],
+                ["Deluxe Room (×2)", "1 King Bed · ₹800/person"],
+                ["Full Experience", "Stay + Meals + Campfire · ₹1,200/person"],
               ].map(([name, price]) => (
                 <div key={name}>
                   <div style={{ color: "rgba(255,255,255,0.9)", fontSize: "14px", fontWeight: 500 }}>{name}</div>
@@ -157,8 +157,8 @@ export default function Footer() {
             </h4>
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {[
-                { icon: <MapPin size={16} />, text: "Near Madikeri Town,\nCoorg, Karnataka 571201" },
-                { icon: <Phone size={16} />, text: "+91 98765 43210" },
+                { icon: <MapPin size={16} />, text: "Parane Post, Madikeri,\nCoorg, Karnataka 571218" },
+                { icon: <Phone size={16} />, text: "Monish Billava Sundara\n+91 94826 29145 (WhatsApp)\n+91 63617 16785" },
                 { icon: <Mail size={16} />, text: "info@ananyahomestay.com" },
               ].map((item, i) => (
                 <div key={i} style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
@@ -171,7 +171,7 @@ export default function Footer() {
             </div>
 
             <a
-              href="https://wa.me/919876543210"
+              href="https://wa.me/919482629145"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-whatsapp"

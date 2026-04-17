@@ -40,7 +40,7 @@ const schemaMarkup = {
   description:
     "A premium homestay in Coorg, Karnataka offering coffee plantation views, home-cooked food, and warm Kodava hospitality.",
   url: "https://ananyahomestay.com",
-  telephone: "+91-9876543210",
+  telephone: "+91-9482629145",
   email: "info@ananyahomestay.com",
   address: {
     "@type": "PostalAddress",

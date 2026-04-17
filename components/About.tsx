@@ -98,10 +98,10 @@ export default function About() {
               a simple dream — to share the natural beauty and rich Kodava culture of this magical land with the world.
             </p>
             <p style={{ color: "var(--text-muted)", fontSize: "16px", lineHeight: 1.8, marginBottom: "32px" }}>
-              Founded in 2014 by the Achar family, we opened our home to travellers seeking an authentic experience
-              away from cookie-cutter hotels. Every morning, guests wake to the scent of fresh coffee, mist rolling
-              over the hills, and the sound of birds in the plantation. Our home-cooked Kodava meals, prepared with
-              love using locally grown spices and produce, complete the experience.
+              Founded by <strong>Monish Billava Sundara</strong> and his family, we opened our home to travellers seeking
+              an authentic experience away from cookie-cutter hotels. Every morning, guests wake to the scent of fresh
+              coffee, mist rolling over the hills, and the sound of birds in the plantation. Our home-cooked Kodava meals,
+              prepared with love using locally grown spices and produce, complete the experience.
             </p>
 
             {/* Values */}

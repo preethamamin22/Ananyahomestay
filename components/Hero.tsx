@@ -159,7 +159,7 @@ export default function Hero() {
             🏡 Book Your Stay
           </a>
           <a
-            href="https://wa.me/919876543210?text=Hi%2C%20I%20want%20to%20book%20a%20stay%20at%20Ananya%20Home%20Stay%20Coorg"
+            href="https://wa.me/919482629145?text=Hi%2C%20I%20want%20to%20book%20a%20stay%20at%20Ananya%20Home%20Stay%20Coorg"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-whatsapp"

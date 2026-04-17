@@ -55,7 +55,7 @@ export default function FloatingWhatsApp() {
             Chat with us on WhatsApp for instant booking assistance!
           </p>
           <a
-            href="https://wa.me/919876543210?text=Hi%2C%20I%20want%20to%20enquire%20about%20Ananya%20Home%20Stay%20Coorg"
+            href="https://wa.me/919482629145?text=Hi%2C%20I%20want%20to%20enquire%20about%20Ananya%20Home%20Stay%20Coorg"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-whatsapp"
@@ -84,7 +84,7 @@ export default function FloatingWhatsApp() {
 
       {/* Main button */}
       <a
-        href="https://wa.me/919876543210?text=Hi%2C%20I%20want%20to%20enquire%20about%20Ananya%20Home%20Stay%20Coorg"
+        href="https://wa.me/919482629145?text=Hi%2C%20I%20want%20to%20enquire%20about%20Ananya%20Home%20Stay%20Coorg"
         target="_blank"
         rel="noopener noreferrer"
         className="floating-whatsapp animate-pulse-green"

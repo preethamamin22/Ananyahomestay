@@ -250,7 +250,7 @@ export default function Attractions() {
               </p>
             </div>
             <a
-              href="https://wa.me/919876543210?text=Hi%2C%20I%20need%20help%20planning%20my%20Coorg%20trip%20from%20Ananya%20Home%20Stay%20Parane"
+              href="https://wa.me/919482629145?text=Hi%2C%20I%20need%20help%20planning%20my%20Coorg%20trip%20from%20Ananya%20Home%20Stay%20Parane"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-whatsapp"

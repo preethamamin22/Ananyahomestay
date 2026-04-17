@@ -98,9 +98,9 @@ export default function Contact() {
                 },
                 {
                   icon: <Phone size={22} color="var(--primary)" />,
-                  title: "Phone",
-                  lines: ["+91 98765 43210", "+91 80712 34567"],
-                  action: { label: "Call Now", href: "tel:+919876543210" },
+                  title: "Phone (Monish Billava Sundara)",
+                  lines: ["+91 94826 29145 (WhatsApp)", "+91 63617 16785"],
+                  action: { label: "Call Now", href: "tel:+919482629145" },
                 },
                 {
                   icon: <Mail size={22} color="var(--primary)" />,

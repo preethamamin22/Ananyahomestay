@@ -2,6 +2,7 @@ import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import About from "@/components/About";
 import Rooms from "@/components/Rooms";
+import Menu from "@/components/Menu";
 import Booking from "@/components/Booking";
 import Gallery from "@/components/Gallery";
 import Attractions from "@/components/Attractions";
@@ -19,6 +20,7 @@ export default function HomePage() {
       <Hero />
       <About />
       <Rooms />
+      <Menu />
       <Booking />
       <Gallery />
       <Attractions />

@@ -101,7 +101,7 @@ export default function Navbar() {
             </a>
           ))}
           <a
-            href="tel:+919876543210"
+            href="tel:+919482629145"
             style={{
               display: "flex",
               alignItems: "center",
@@ -117,7 +117,7 @@ export default function Navbar() {
               transition: "all 0.3s ease",
             }}
           >
-            <Phone size={16} /> Book Now
+            <Phone size={16} /> Call Now
           </a>
         </div>
 
