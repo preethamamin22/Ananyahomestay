@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Experience the best homestay in Coorg at Parane, Madikeri. Beautiful coffee plantation views, home-cooked Kodava food, bonfire nights, plantation walks, and warm hospitality. Book Ananya Home Stay for an affordable and serene stay in Coorg, Karnataka.",
   keywords:
-    "best homestay in Coorg, Coorg homestay booking, affordable stay in Coorg, Ananya Home Stay Parane, Parane Madikeri homestay, coffee plantation stay Coorg, Kodava hospitality, homestay near Tadiandamol",
+    "best homestay in Coorg, Coorg homestay booking, affordable stay in Coorg, Ananya Home Stay Parane, Parane Madikeri homestay, coffee plantation stay Coorg, Kodava hospitality, homestay near Tadiandamol, Coorg tourism, budget homestay Coorg, homestay with food Coorg, family homestay Coorg, Coorg homestay for couples, best home cooked food in Coorg, Parane Madikeri tourism, coffee plantation walk Coorg, peaceful stays in Coorg",
   openGraph: {
     title: "Ananya Home Stay – Best Homestay in Coorg",
     description:
@@ -28,8 +28,8 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
-  authors: [{ name: "Ananya Home Stay" }],
-  creator: "Ananya Home Stay",
+  authors: [{ name: "Ananya Home Stay" }, { name: "Preetham", url: "https://preethamamin.vercel.app/" }],
+  creator: "Preetham (https://preethamamin.vercel.app/)",
   metadataBase: new URL("https://ananyahomestay.com"),
 };
 
