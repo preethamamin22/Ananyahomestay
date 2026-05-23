@@ -42,11 +42,11 @@ export default function AdminDashboard() {
   // Login handler
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginForm.username === "admin" && loginForm.password === "ananya2025") {
+    if (loginForm.username === "Monish" && loginForm.password === "Monish@123") {
       setIsLoggedIn(true);
       setLoginError("");
     } else {
-      setLoginError("Invalid credentials. Try admin / ananya2025");
+      setLoginError("Invalid credentials.");
     }
   };
 
@@ -148,7 +148,6 @@ export default function AdminDashboard() {
             </button>
           </form>
           <p style={{ textAlign: "center", marginTop: "16px", fontSize: "13px", color: "var(--text-muted)" }}>
-            Demo: admin / ananya2025
           </p>
         </div>
       </div>
