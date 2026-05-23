@@ -12,7 +12,7 @@
   --text-dark: #1a1a1a;
   --text-muted: #6b7280;
   --border: #e5e7eb;
-  --bg-green-light: #f0f7ee;
+  --bg-green-light: #fffff0; /* ivory */
   --bg-brown-light: #fdf6f0;
 }
 
@@ -28,7 +28,7 @@ html {
 
 body {
   font-family: 'Inter', sans-serif;
-  background: var(--warm-white);
+  background: #fffff0; /* ivory */
   color: var(--text-dark);
   line-height: 1.6;
 }

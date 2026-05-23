@@ -23,6 +23,7 @@ export default function Navbar() {
     { href: "#activities", label: "Activities" },
     { href: "#reviews", label: "Reviews" },
     { href: "#contact", label: "Contact" },
+    { href: "/admin", label: "Admin Dashboard" },
   ];
 
   return (
