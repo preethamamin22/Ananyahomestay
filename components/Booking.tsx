@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
-import { getBookedDates } from '@/app/admin/actions';
+import { getBookedDates, createBookingAction } from '@/app/admin/actions';
 
 const breakfastMenu = [
   "Idli with Chutney, Sambar & Kesari Bath",
@@ -47,6 +47,7 @@ export default function Booking() {
     checkIn: "",
     checkOut: "",
     guests: "2",
+    room: "Deluxe Garden Room",
     packageType: "full-experience" as PackageType,
     breakfastChoice: "",
     dinnerChoice: "",
@@ -107,14 +108,33 @@ export default function Booking() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1500));
+    
+    try {
+      await createBookingAction({
+        name: form.name,
+        phone: form.phone,
+        email: form.email,
+        room: form.room,
+        checkin: form.checkIn,
+        checkout: form.checkOut,
+        guests: parseInt(form.guests),
+        total: totalPrice,
+        status: "pending",
+      });
+      setSubmitted(true);
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to submit booking. Please try again.");
+      setLoading(false);
+      return;
+    }
+    
     setLoading(false);
-    setSubmitted(true);
 
     const mealInfo = isFullPackage
       ? `\n🍳 Breakfast: ${form.breakfastChoice}\n🍛 Dinner: ${form.dinnerChoice}`
       : "";
-    const msg = `🏡 *New Booking at Ananya Home Stay*\n\n👤 Name: ${form.name}\n📞 Phone: ${form.phone}\n📧 Email: ${form.email}\n📦 Package: ${packageLabel}\n📅 Check-in: ${form.checkIn}\n📅 Check-out: ${form.checkOut}\n👥 Guests: ${form.guests}\n💰 Total: ₹${totalPrice.toLocaleString()}${mealInfo}\n📝 Requests: ${form.requests || "None"}`;
+    const msg = `🏡 *New Booking at Ananya Home Stay*\n\n👤 Name: ${form.name}\n📞 Phone: ${form.phone}\n📧 Email: ${form.email}\n📦 Package: ${packageLabel}\n🏠 Room: ${form.room}\n📅 Check-in: ${form.checkIn}\n📅 Check-out: ${form.checkOut}\n👥 Guests: ${form.guests}\n💰 Total: ₹${totalPrice.toLocaleString()}${mealInfo}\n📝 Requests: ${form.requests || "None"}`;
     const waUrl = `https://wa.me/919482629145?text=${encodeURIComponent(msg)}`;
     setTimeout(() => window.open(waUrl, "_blank"), 2000);
   };
@@ -419,6 +439,18 @@ export default function Booking() {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Room Selector */}
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--text-dark)", marginBottom: "8px" }}>
+                  🏡 Select Room *
+                </label>
+                <select name="room" value={form.room} onChange={handleChange} className="input-field">
+                  <option value="Deluxe Garden Room">Deluxe Garden Room (Max 2 Guests)</option>
+                  <option value="Family Suite">Family Suite (Max 4 Guests)</option>
+                  <option value="Cozy Standard Room">Cozy Standard Room (Max 2 Guests)</option>
+                </select>
               </div>
 
               {/* Guests */}

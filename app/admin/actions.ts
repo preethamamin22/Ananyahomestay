@@ -61,3 +61,30 @@ export async function getBookedDates() {
   })
   return bookings
 }
+
+export async function createBookingAction(data: {
+  name: string;
+  phone: string;
+  email: string;
+  room: string;
+  checkin: string;
+  checkout: string;
+  guests: number;
+  total: number;
+  status: string;
+}) {
+  const newBooking = await prisma.booking.create({
+    data: {
+      name: data.name,
+      phone: data.phone,
+      room: data.room,
+      checkin: data.checkin,
+      checkout: data.checkout,
+      guests: data.guests,
+      total: data.total,
+      status: data.status,
+    }
+  });
+  revalidatePath('/admin');
+  return newBooking;
+}

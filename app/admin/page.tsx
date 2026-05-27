@@ -13,7 +13,7 @@ type ReviewType = { id: number, name: string, rating: number, review: string, da
 type RoomType = { id: string, name: string, price: number, capacity: number, status: string, bookings: number };
 
 
-type TabType = "dashboard" | "bookings" | "rooms" | "reviews" | "analytics";
+type TabType = "dashboard" | "bookings" | "calendar" | "rooms" | "reviews" | "analytics";
 
 export default function AdminDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -64,16 +64,30 @@ export default function AdminDashboard() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // One-time persistent login verification
+  useEffect(() => {
+    const savedLogin = localStorage.getItem("admin_logged_in");
+    if (savedLogin === "true") {
+      setIsLoggedIn(true);
+    }
+  }, []);
+
 
   // Login handler
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginForm.username === "Monish" && loginForm.password === "Monish@123") {
       setIsLoggedIn(true);
+      localStorage.setItem("admin_logged_in", "true");
       setLoginError("");
     } else {
       setLoginError("Invalid credentials.");
     }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    localStorage.removeItem("admin_logged_in");
   };
 
   const updateBookingStatus = async (id: string, status: string) => {
@@ -185,7 +199,8 @@ export default function AdminDashboard() {
 
   const navItems = [
     { id: "dashboard", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
-    { id: "bookings", icon: <Calendar size={18} />, label: "Bookings" },
+    { id: "bookings", icon: <Users size={18} />, label: "Bookings" },
+    { id: "calendar", icon: <Calendar size={18} />, label: "Calendar" },
     { id: "rooms", icon: <BedDouble size={18} />, label: "Rooms" },
     { id: "reviews", icon: <Star size={18} />, label: "Reviews" },
     { id: "analytics", icon: <BarChart3 size={18} />, label: "Analytics" },
@@ -289,7 +304,7 @@ export default function AdminDashboard() {
         {/* Logout */}
         <div style={{ padding: "16px 12px", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
           <button
-            onClick={() => setIsLoggedIn(false)}
+            onClick={handleLogout}
             className="admin-nav-item"
             style={{ width: "100%", border: "none", justifyContent: (isMobile || sidebarOpen) ? "flex-start" : "center" }}
           >
@@ -697,6 +712,11 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* Calendar scheduler */}
+          {activeTab === "calendar" && (
+            <CalendarView bookings={bookings} rooms={rooms} isMobile={isMobile} />
+          )}
+
           {/* Rooms */}
           {activeTab === "rooms" && (
             <div>
@@ -952,6 +972,281 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Stateful month scheduler grid sub-component
+function CalendarView({ bookings, rooms, isMobile }: { bookings: BookingType[], rooms: RoomType[], isMobile: boolean }) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  // Navigation
+  const prevMonth = () => {
+    setCurrentDate(new Date(year, month - 1, 1));
+  };
+  const nextMonth = () => {
+    setCurrentDate(new Date(year, month + 1, 1));
+  };
+
+  // Weeks and days calculation
+  const firstDayIndex = new Date(year, month, 1).getDay();
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  const daysArray = Array.from({ length: totalDays }, (_, i) => i + 1);
+  const prevMonthTotalDays = new Date(year, month, 0).getDate();
+  const prevMonthDaysPadding = Array.from({ length: firstDayIndex }, (_, i) => prevMonthTotalDays - firstDayIndex + i + 1);
+
+  // Formatting date key to string (YYYY-MM-DD)
+  const formatDateKey = (d: number, m: number, y: number) => {
+    const mm = String(m + 1).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    return `${y}-${mm}-${dd}`;
+  };
+
+  // Find bookings overlapping a given date
+  const getBookingsForDate = (dateStr: string) => {
+    return bookings.filter(b => {
+      if (b.status === 'cancelled') return false;
+      const chIn = b.checkin;
+      const chOut = b.checkout;
+      return dateStr >= chIn && dateStr < chOut;
+    });
+  };
+
+  // Color mapping based on Room Name
+  const getRoomColor = (roomName: string) => {
+    if (roomName.includes("Deluxe")) return { bg: "#dcfce7", color: "#15803d", border: "#bbf7d0" };
+    if (roomName.includes("Family")) return { bg: "#f3e8ff", color: "#6b21a8", border: "#e9d5ff" };
+    return { bg: "#fef3c7", color: "#b45309", border: "#fef08a" }; // Cozy standard
+  };
+
+  const selectedDateStr = selectedDate ? formatDateKey(selectedDate.getDate(), selectedDate.getMonth(), selectedDate.getFullYear()) : null;
+  const dayBookings = selectedDateStr ? getBookingsForDate(selectedDateStr) : [];
+
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 340px", gap: "24px" }}>
+      {/* Calendar Grid Box */}
+      <div style={{ background: "white", borderRadius: "16px", padding: isMobile ? "16px" : "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", overflow: "hidden" }}>
+        {/* Navigation Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <h3 style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, color: "var(--primary-dark)", fontSize: "20px" }}>
+            {currentDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
+          </h3>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={prevMonth} style={{ padding: "8px 14px", border: "1px solid var(--border)", background: "none", color: "var(--text-dark)", borderRadius: "10px", fontSize: "13px", cursor: "pointer", fontWeight: 600 }}>
+              ← Prev
+            </button>
+            <button onClick={nextMonth} style={{ padding: "8px 14px", border: "1px solid var(--border)", background: "none", color: "var(--text-dark)", borderRadius: "10px", fontSize: "13px", cursor: "pointer", fontWeight: 600 }}>
+              Next →
+            </button>
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "20px", fontSize: "12px", color: "var(--text-muted)", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ width: "12px", height: "12px", borderRadius: "4px", background: "#dcfce7", border: "1px solid #bbf7d0" }} /> Deluxe Garden Room
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ width: "12px", height: "12px", borderRadius: "4px", background: "#f3e8ff", border: "1px solid #e9d5ff" }} /> Family Suite
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ width: "12px", height: "12px", borderRadius: "4px", background: "#fef3c7", border: "1px solid #fef08a" }} /> Cozy Standard Room
+          </span>
+        </div>
+
+        {/* Calendar Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px", textAlign: "center" }}>
+          {/* Weekday headers */}
+          {weekdays.map(d => (
+            <div key={d} style={{ fontWeight: 600, fontSize: "12px", textTransform: "uppercase", color: "var(--text-muted)", padding: "8px 0" }}>
+              {d}
+            </div>
+          ))}
+
+          {/* Previous month padding cells */}
+          {prevMonthDaysPadding.map((d, i) => (
+            <div key={`prev-${i}`} style={{ minHeight: isMobile ? "60px" : "90px", border: "1px solid #f8fafc", opacity: 0.3, padding: "8px", background: "#f8fafc" }}>
+              <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{d}</span>
+            </div>
+          ))}
+
+          {/* Current month day cells */}
+          {daysArray.map(day => {
+            const dateStr = formatDateKey(day, month, year);
+            const dateBookings = getBookingsForDate(dateStr);
+            const isSelected = selectedDate && selectedDate.getDate() === day && selectedDate.getMonth() === month && selectedDate.getFullYear() === year;
+
+            return (
+              <div
+                key={day}
+                onClick={() => setSelectedDate(new Date(year, month, day))}
+                style={{
+                  minHeight: isMobile ? "65px" : "95px",
+                  border: isSelected ? "2px solid var(--primary)" : "1px solid #f1f5f9",
+                  borderRadius: "8px",
+                  padding: "6px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  background: isSelected ? "#f8fafc" : "white",
+                  display: "flex",
+                  flexDirection: "column" as const,
+                  gap: "4px",
+                  transition: "all 0.2s ease",
+                  position: "relative"
+                }}
+              >
+                {/* Day number */}
+                <span style={{
+                  fontSize: "12px",
+                  fontWeight: isSelected ? 700 : 500,
+                  color: isSelected ? "var(--primary)" : "var(--text-dark)",
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  {day}
+                </span>
+
+                {/* Booking indicator strips */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px", flex: 1, overflow: "hidden" }}>
+                  {dateBookings.map((b) => {
+                    const roomTheme = getRoomColor(b.room);
+                    if (isMobile) {
+                      return (
+                        <div
+                          key={b.id}
+                          style={{
+                            height: "6px",
+                            borderRadius: "3px",
+                            background: roomTheme.color,
+                            width: "100%"
+                          }}
+                          title={`${b.name} (${b.room})`}
+                        />
+                      );
+                    }
+                    return (
+                      <div
+                        key={b.id}
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background: roomTheme.bg,
+                          color: roomTheme.color,
+                          border: `1px solid ${roomTheme.border}`,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          lineHeight: "1.2"
+                        }}
+                      >
+                        {b.name.split(" ")[0]}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Selected Day Details Panel */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ background: "white", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid var(--border)" }}>
+          <h4 style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "16px", marginBottom: "16px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+            📅 {selectedDate ? selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "Select Date"}
+          </h4>
+
+          {dayBookings.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--text-muted)" }}>
+              <div style={{ fontSize: "32px", marginBottom: "8px" }}>🍃</div>
+              <div style={{ fontSize: "14px", fontWeight: 500 }}>No bookings for this date.</div>
+              <div style={{ fontSize: "12px" }}>Rooms are fully available.</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {dayBookings.map(b => {
+                const roomTheme = getRoomColor(b.room);
+                return (
+                  <div
+                    key={b.id}
+                    style={{
+                      border: `1px solid ${roomTheme.border}`,
+                      borderRadius: "12px",
+                      padding: "16px",
+                      background: "#fafafa"
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", alignItems: "center" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--primary)" }}>#{b.id}</span>
+                      <span className={`status-${b.status}`} style={{ fontSize: "11px", fontWeight: 600 }}>{b.status}</span>
+                    </div>
+
+                    <div style={{ fontWeight: 700, fontSize: "15px", color: "var(--text-dark)", marginBottom: "4px" }}>{b.name}</div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "10px" }}>{b.phone}</div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "13px", marginBottom: "12px", borderTop: "1px solid #f1f5f9", paddingTop: "10px" }}>
+                      <div>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block" }}>Room</span>
+                        <strong>{b.room.split(" ")[0]}</strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block" }}>Guests</span>
+                        <strong>{b.guests}</strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block" }}>Check-in</span>
+                        <strong>{b.checkin}</strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", display: "block" }}>Total</span>
+                        <strong>₹{b.total.toLocaleString()}</strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <a
+                        href={`https://wa.me/${b.phone.replace(/\D/g, "")}?text=Hi%20${encodeURIComponent(b.name)}%2C%20regarding%20your%20stay%20at%20Ananya%20Home%20Stay...`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          background: "#e8fbee",
+                          color: "#25d366",
+                          border: "none",
+                          padding: "6px 12px",
+                          borderRadius: "8px",
+                          fontWeight: 600,
+                          fontSize: "12px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          textDecoration: "none",
+                          flex: 1,
+                          justifyContent: "center"
+                        }}
+                      >
+                        WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
