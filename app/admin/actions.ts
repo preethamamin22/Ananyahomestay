@@ -26,9 +26,47 @@ export async function getDashboardStats() {
 
 export async function getDashboardData() {
   const rooms = await prisma.room.findMany();
-  const bookings = await prisma.booking.findMany({ orderBy: { id: 'desc' } });
-  const reviews = await prisma.review.findMany({ orderBy: { id: 'desc' } });
-  return { rooms, bookings, reviews };
+  const rawBookings = await prisma.booking.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { room: { select: { name: true } } },
+  });
+
+  // Serialize dates to strings and flatten room name for the client
+  const bookings = rawBookings.map(b => ({
+    id: b.id,
+    name: b.name,
+    phone: b.phone ?? '',
+    email: b.email ?? '',
+    room: b.room?.name ?? '',
+    checkin: b.checkin.toISOString().split('T')[0],
+    checkout: b.checkout.toISOString().split('T')[0],
+    guests: b.guests,
+    total: b.total,
+    status: b.status,
+  }));
+
+  // Use Testimonial model for reviews
+  const rawReviews = await prisma.testimonial.findMany({ orderBy: { id: 'desc' } });
+  const reviews = rawReviews.map(r => ({
+    id: r.id,
+    name: r.name,
+    rating: r.rating,
+    review: r.review,
+    date: r.date.toISOString().split('T')[0],
+    status: r.approved ? 'approved' : 'pending',
+  }));
+
+  // Serialize room data
+  const serializedRooms = rooms.map(r => ({
+    id: r.id,
+    name: r.name,
+    price: r.price,
+    capacity: r.capacity,
+    status: r.status,
+    bookings: r.bookingsCount,
+  }));
+
+  return { rooms: serializedRooms, bookings, reviews };
 }
 
 export async function updateBookingStatus(id: string, status: string) {
@@ -40,15 +78,15 @@ export async function updateBookingStatus(id: string, status: string) {
 }
 
 export async function updateReviewStatus(id: number, status: string) {
-  await prisma.review.update({
+  await prisma.testimonial.update({
     where: { id },
-    data: { status }
+    data: { approved: status === 'approved' }
   })
   revalidatePath('/admin')
 }
 
 export async function deleteReviewAction(id: number) {
-  await prisma.review.delete({
+  await prisma.testimonial.delete({
     where: { id }
   })
   revalidatePath('/admin')
@@ -59,7 +97,11 @@ export async function getBookedDates() {
     where: { status: { in: ['confirmed', 'pending'] } },
     select: { checkin: true, checkout: true }
   })
-  return bookings
+  // Return as ISO strings so the client can parse them
+  return bookings.map(b => ({
+    checkin: b.checkin.toISOString(),
+    checkout: b.checkout.toISOString(),
+  }))
 }
 
 export async function createBookingAction(data: {
@@ -73,27 +115,45 @@ export async function createBookingAction(data: {
   total: number;
   status: string;
 }) {
-  // Resolve room name to its ID
-  const roomRecord = await prisma.room.findFirst({
+  // Resolve room name to its ID, or auto-create the room if it doesn't exist
+  let roomRecord = await prisma.room.findFirst({
     where: { name: data.room },
     select: { id: true },
   });
+
   if (!roomRecord) {
-    throw new Error(`Room "${data.room}" not found`);
+    // Auto-create room so booking never fails due to missing room
+    const roomId = data.room.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const created = await prisma.room.create({
+      data: {
+        id: roomId,
+        name: data.room,
+        price: 0,
+        capacity: 4,
+        status: 'available',
+        bookingsCount: 0,
+      },
+    });
+    roomRecord = { id: created.id };
   }
+
+  // Convert date strings to Date objects for the DateTime fields
+  const checkinDate = new Date(data.checkin);
+  const checkoutDate = new Date(data.checkout);
+
   const newBooking = await prisma.booking.create({
     data: {
       name: data.name,
       phone: data.phone,
       email: data.email,
       roomId: roomRecord.id,
-      checkin: data.checkin,
-      checkout: data.checkout,
+      checkin: checkinDate,
+      checkout: checkoutDate,
       guests: data.guests,
       total: data.total,
       status: data.status,
     },
   });
   revalidatePath('/admin');
-  return newBooking;
+  return { id: newBooking.id };
 }
