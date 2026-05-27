@@ -108,6 +108,7 @@ export default function Booking() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
+    setError("");
     
     try {
       const result = await createBookingAction({
@@ -121,29 +122,29 @@ export default function Booking() {
         total: totalPrice,
         status: "pending",
       });
-      if (!result.success) {
+      if (result && !result.success) {
         setError(`Booking failed: ${result.error}`);
         setLoading(false);
         return;
       }
+      // Success!
+      setLoading(false);
       setSubmitted(true);
+      // Send WhatsApp notification
+      const mealInfo = isFullPackage
+        ? `\n🍳 Breakfast: ${form.breakfastChoice}\n🍛 Dinner: ${form.dinnerChoice}`
+        : "";
+      const msg = `🏡 *New Booking at Ananya Home Stay*\n\n👤 Name: ${form.name}\n📞 Phone: ${form.phone}\n📧 Email: ${form.email}\n📦 Package: ${packageLabel}\n🏠 Room: ${form.room}\n📅 Check-in: ${form.checkIn}\n📅 Check-out: ${form.checkOut}\n👥 Guests: ${form.guests}\n💰 Total: ₹${totalPrice.toLocaleString()}${mealInfo}\n📝 Requests: ${form.requests || "None"}`;
+      const waUrl = `https://wa.me/919482629145?text=${encodeURIComponent(msg)}`;
+      setTimeout(() => window.open(waUrl, "_blank"), 2000);
     } catch (err: any) {
       console.error("Booking error:", err);
       const msg = err?.message || "Unknown error";
       setError(`Booking failed: ${msg}`);
       setLoading(false);
-      return;
     }
-    
-    setLoading(false);
-
-    const mealInfo = isFullPackage
-      ? `\n🍳 Breakfast: ${form.breakfastChoice}\n🍛 Dinner: ${form.dinnerChoice}`
-      : "";
-    const msg = `🏡 *New Booking at Ananya Home Stay*\n\n👤 Name: ${form.name}\n📞 Phone: ${form.phone}\n📧 Email: ${form.email}\n📦 Package: ${packageLabel}\n🏠 Room: ${form.room}\n📅 Check-in: ${form.checkIn}\n📅 Check-out: ${form.checkOut}\n👥 Guests: ${form.guests}\n💰 Total: ₹${totalPrice.toLocaleString()}${mealInfo}\n📝 Requests: ${form.requests || "None"}`;
-    const waUrl = `https://wa.me/919482629145?text=${encodeURIComponent(msg)}`;
-    setTimeout(() => window.open(waUrl, "_blank"), 2000);
   };
+
 
   const today = new Date().toISOString().split("T")[0];
 
