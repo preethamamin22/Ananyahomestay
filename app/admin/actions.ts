@@ -77,6 +77,7 @@ export async function createBookingAction(data: {
     data: {
       name: data.name,
       phone: data.phone,
+      email: data.email,
       room: data.room,
       checkin: data.checkin,
       checkout: data.checkout,
