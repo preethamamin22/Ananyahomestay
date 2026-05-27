@@ -31,7 +31,6 @@ export async function getDashboardData() {
     include: { room: { select: { name: true } } },
   });
 
-  // Serialize dates to strings and flatten room name for the client
   const bookings = rawBookings.map(b => ({
     id: b.id,
     name: b.name,
@@ -45,7 +44,6 @@ export async function getDashboardData() {
     status: b.status,
   }));
 
-  // Use Testimonial model for reviews
   const rawReviews = await prisma.testimonial.findMany({ orderBy: { id: 'desc' } });
   const reviews = rawReviews.map(r => ({
     id: r.id,
@@ -56,7 +54,6 @@ export async function getDashboardData() {
     status: r.approved ? 'approved' : 'pending',
   }));
 
-  // Serialize room data
   const serializedRooms = rooms.map(r => ({
     id: r.id,
     name: r.name,
@@ -70,25 +67,17 @@ export async function getDashboardData() {
 }
 
 export async function updateBookingStatus(id: string, status: string) {
-  await prisma.booking.update({
-    where: { id },
-    data: { status }
-  })
+  await prisma.booking.update({ where: { id }, data: { status } })
   revalidatePath('/admin')
 }
 
 export async function updateReviewStatus(id: number, status: string) {
-  await prisma.testimonial.update({
-    where: { id },
-    data: { approved: status === 'approved' }
-  })
+  await prisma.testimonial.update({ where: { id }, data: { approved: status === 'approved' } })
   revalidatePath('/admin')
 }
 
 export async function deleteReviewAction(id: number) {
-  await prisma.testimonial.delete({
-    where: { id }
-  })
+  await prisma.testimonial.delete({ where: { id } })
   revalidatePath('/admin')
 }
 
@@ -97,68 +86,62 @@ export async function getBookedDates() {
     where: { status: { in: ['confirmed', 'pending'] } },
     select: { checkin: true, checkout: true }
   })
-  // Return as ISO strings so the client can parse them
   return bookings.map(b => ({
     checkin: b.checkin.toISOString(),
     checkout: b.checkout.toISOString(),
   }))
 }
 
+// NOTE: createBookingAction is intentionally NOT using revalidatePath
+// because it causes Next.js to throw an internal error that breaks client components.
+// Booking creation is handled via /api/booking REST route instead.
 export async function createBookingAction(data: {
   name: string;
   phone: string;
   email: string;
-  room: string; // room name
+  room: string;
   checkin: string;
   checkout: string;
   guests: number;
   total: number;
   status: string;
-}): Promise<{ success: boolean; error?: string; id?: string }> {
-  try {
-    // Resolve room name to its ID, or auto-create the room if it doesn't exist
-    let roomRecord = await prisma.room.findFirst({
-      where: { name: data.room },
-      select: { id: true },
-    });
+}) {
+  let roomRecord = await prisma.room.findFirst({
+    where: { name: data.room },
+    select: { id: true },
+  });
 
-    if (!roomRecord) {
-      // Auto-create room so booking never fails due to missing room
-      const roomId = data.room.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const created = await prisma.room.create({
-        data: {
-          id: roomId,
-          name: data.room,
-          price: 0,
-          capacity: 4,
-          status: 'available',
-          bookingsCount: 0,
-        },
-      });
-      roomRecord = { id: created.id };
-    }
-
-    // Convert date strings to Date objects for the DateTime fields
-    const checkinDate = new Date(data.checkin);
-    const checkoutDate = new Date(data.checkout);
-
-    const newBooking = await prisma.booking.create({
+  if (!roomRecord) {
+    const roomId = data.room.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const created = await prisma.room.create({
       data: {
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        roomId: roomRecord.id,
-        checkin: checkinDate,
-        checkout: checkoutDate,
-        guests: data.guests,
-        total: data.total,
-        status: data.status,
+        id: roomId,
+        name: data.room,
+        price: 0,
+        capacity: 4,
+        status: 'available',
+        bookingsCount: 0,
       },
     });
-    revalidatePath('/admin');
-    return { success: true, id: newBooking.id };
-  } catch (err: any) {
-    console.error('createBookingAction error:', err);
-    return { success: false, error: err?.message || 'Unknown database error' };
+    roomRecord = { id: created.id };
   }
+
+  const newBooking = await prisma.booking.create({
+    data: {
+      name: data.name,
+      phone: data.phone,
+      email: data.email,
+      roomId: roomRecord.id,
+      checkin: new Date(data.checkin),
+      checkout: new Date(data.checkout),
+      guests: data.guests,
+      total: data.total,
+      status: data.status,
+    },
+  });
+
+  // DO NOT call revalidatePath here - it throws NEXT_REDIRECT internally
+  // and gets caught by the client's catch block, causing false errors.
+
+  return { success: true, id: newBooking.id };
 }

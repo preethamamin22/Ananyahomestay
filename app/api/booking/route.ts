@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Resolve room name to its ID, or auto-create the room
+    // Resolve room name to its ID, auto-create if missing
     let roomRecord = await prisma.room.findFirst({
       where: { name: room },
       select: { id: true },
@@ -45,9 +45,11 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    console.log('✅ Booking created:', newBooking.id, '| Room:', room, '| Guest:', name)
     return NextResponse.json({ success: true, id: newBooking.id })
+
   } catch (err: any) {
-    console.error('Booking API error:', err)
+    console.error('❌ Booking API error:', err.message)
     return NextResponse.json({ success: false, error: err?.message || 'Database error' }, { status: 500 })
   }
 }
