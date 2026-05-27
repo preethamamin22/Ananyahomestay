@@ -7,18 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Enum removed for SQLite compatibility; using string status field
+
 model Booking {
-  id       String @id @default(cuid())
-  name     String
-  phone    String
-  email    String?
-  room     String
-  checkin  String
-  checkout String
-  guests   Int
-  total    Int
-  status   String
+  id        String         @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  roomId    String
+  room      Room           @relation(fields: [roomId], references: [id])
+  checkin   DateTime
+  checkout  DateTime
+  guests    Int
+  total     Int
+  status    String @default("pending")
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 }
+
+model BlockedDate {
+  id        Int      @id @default(autoincrement())
+  roomId    String
+  date      DateTime
+  reason    String?
+}
+
 
 model Room {
   id       String @id
@@ -29,11 +43,11 @@ model Room {
   bookings Int    @default(0)
 }
 
-model Review {
-  id       Int    @id @default(autoincrement())
-  name     String
-  rating   Int
-  review   String
-  date     String
-  status   String
+model Testimonial {
+  id        Int      @id @default(autoincrement())
+  name      String
+  rating    Int
+  review    String
+  date      DateTime @default(now())
+  approved  Boolean  @default(false)
 }
