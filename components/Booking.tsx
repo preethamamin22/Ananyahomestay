@@ -110,7 +110,7 @@ export default function Booking() {
     setLoading(true);
     
     try {
-      await createBookingAction({
+      const result = await createBookingAction({
         name: form.name,
         phone: form.phone,
         email: form.email,
@@ -121,10 +121,16 @@ export default function Booking() {
         total: totalPrice,
         status: "pending",
       });
+      if (!result.success) {
+        setError(`Booking failed: ${result.error}`);
+        setLoading(false);
+        return;
+      }
       setSubmitted(true);
     } catch (err: any) {
-      console.error(err);
-      setError("Failed to submit booking. Please try again.");
+      console.error("Booking error:", err);
+      const msg = err?.message || "Unknown error";
+      setError(`Booking failed: ${msg}`);
       setLoading(false);
       return;
     }

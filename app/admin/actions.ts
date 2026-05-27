@@ -114,46 +114,51 @@ export async function createBookingAction(data: {
   guests: number;
   total: number;
   status: string;
-}) {
-  // Resolve room name to its ID, or auto-create the room if it doesn't exist
-  let roomRecord = await prisma.room.findFirst({
-    where: { name: data.room },
-    select: { id: true },
-  });
+}): Promise<{ success: boolean; error?: string; id?: string }> {
+  try {
+    // Resolve room name to its ID, or auto-create the room if it doesn't exist
+    let roomRecord = await prisma.room.findFirst({
+      where: { name: data.room },
+      select: { id: true },
+    });
 
-  if (!roomRecord) {
-    // Auto-create room so booking never fails due to missing room
-    const roomId = data.room.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const created = await prisma.room.create({
+    if (!roomRecord) {
+      // Auto-create room so booking never fails due to missing room
+      const roomId = data.room.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const created = await prisma.room.create({
+        data: {
+          id: roomId,
+          name: data.room,
+          price: 0,
+          capacity: 4,
+          status: 'available',
+          bookingsCount: 0,
+        },
+      });
+      roomRecord = { id: created.id };
+    }
+
+    // Convert date strings to Date objects for the DateTime fields
+    const checkinDate = new Date(data.checkin);
+    const checkoutDate = new Date(data.checkout);
+
+    const newBooking = await prisma.booking.create({
       data: {
-        id: roomId,
-        name: data.room,
-        price: 0,
-        capacity: 4,
-        status: 'available',
-        bookingsCount: 0,
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        roomId: roomRecord.id,
+        checkin: checkinDate,
+        checkout: checkoutDate,
+        guests: data.guests,
+        total: data.total,
+        status: data.status,
       },
     });
-    roomRecord = { id: created.id };
+    revalidatePath('/admin');
+    return { success: true, id: newBooking.id };
+  } catch (err: any) {
+    console.error('createBookingAction error:', err);
+    return { success: false, error: err?.message || 'Unknown database error' };
   }
-
-  // Convert date strings to Date objects for the DateTime fields
-  const checkinDate = new Date(data.checkin);
-  const checkoutDate = new Date(data.checkout);
-
-  const newBooking = await prisma.booking.create({
-    data: {
-      name: data.name,
-      phone: data.phone,
-      email: data.email,
-      roomId: roomRecord.id,
-      checkin: checkinDate,
-      checkout: checkoutDate,
-      guests: data.guests,
-      total: data.total,
-      status: data.status,
-    },
-  });
-  revalidatePath('/admin');
-  return { id: newBooking.id };
 }
