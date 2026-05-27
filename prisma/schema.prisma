@@ -15,7 +15,7 @@ model Booking {
   phone     String?
   email     String?
   roomId    String
-  room      Room           @relation(fields: [roomId], references: [id])
+  room      Room           @relation("RoomBookings", fields: [roomId], references: [id])
   checkin   DateTime
   checkout  DateTime
   guests    Int
@@ -40,7 +40,8 @@ model Room {
   price    Int
   capacity Int
   status   String
-  bookings Int    @default(0)
+  bookings Booking[] @relation("RoomBookings")
+  bookingsCount Int    @default(0)
 }
 
 model Testimonial {

@@ -66,25 +66,33 @@ export async function createBookingAction(data: {
   name: string;
   phone: string;
   email: string;
-  room: string;
+  room: string; // room name
   checkin: string;
   checkout: string;
   guests: number;
   total: number;
   status: string;
 }) {
+  // Resolve room name to its ID
+  const roomRecord = await prisma.room.findFirst({
+    where: { name: data.room },
+    select: { id: true },
+  });
+  if (!roomRecord) {
+    throw new Error(`Room "${data.room}" not found`);
+  }
   const newBooking = await prisma.booking.create({
     data: {
       name: data.name,
       phone: data.phone,
       email: data.email,
-      roomId: data.room,
+      roomId: roomRecord.id,
       checkin: data.checkin,
       checkout: data.checkout,
       guests: data.guests,
       total: data.total,
       status: data.status,
-    }
+    },
   });
   revalidatePath('/admin');
   return newBooking;
