@@ -13,11 +13,11 @@ async function main() {
 
   await prisma.booking.createMany({
     data: [
-      { id: "BK001", name: "Priya Sharma", room: "Deluxe Garden Room", checkin: "2025-04-10", checkout: "2025-04-13", guests: 2, total: 10500, status: "confirmed", phone: "+91 98765 11111" },
-      { id: "BK002", name: "Rahul Verma", room: "Family Suite", checkin: "2025-04-15", checkout: "2025-04-18", guests: 4, total: 16500, status: "pending", phone: "+91 98765 22222" },
-      { id: "BK003", name: "Arjun Nair", room: "Cozy Standard", checkin: "2025-04-20", checkout: "2025-04-22", guests: 1, total: 4400, status: "confirmed", phone: "+91 98765 33333" },
-      { id: "BK004", name: "Sneha Kulkarni", room: "Deluxe Garden Room", checkin: "2025-05-01", checkout: "2025-05-05", guests: 2, total: 14000, status: "pending", phone: "+91 98765 44444" },
-      { id: "BK005", name: "Deepak Gowda", room: "Family Suite", checkin: "2025-05-10", checkout: "2025-05-12", guests: 3, total: 11000, status: "cancelled", phone: "+91 98765 55555" },
+      { id: "BK001", name: "Priya Sharma", room: "Deluxe Garden Room", checkin: "2025-04-10", checkout: "2025-04-13", guests: 2, total: 10500, status: "confirmed", phone: "+91 98765 11111", email: "priyaa@example.com" },
+      { id: "BK002", name: "Rahul Verma", room: "Family Suite", checkin: "2025-04-15", checkout: "2025-04-18", guests: 4, total: 16500, status: "pending", phone: "+91 98765 22222", email: "rahulv@example.com" },
+      { id: "BK003", name: "Arjun Nair", room: "Cozy Standard", checkin: "2025-04-20", checkout: "2025-04-22", guests: 1, total: 4400, status: "confirmed", phone: "+91 98765 33333", email: "arjunn@example.com" },
+      { id: "BK004", name: "Sneha Kulkarni", room: "Deluxe Garden Room", checkin: "2025-05-01", checkout: "2025-05-05", guests: 2, total: 14000, status: "pending", phone: "+91 98765 44444", email: "sneha@example.com" },
+      { id: "BK005", name: "Deepak Gowda", room: "Family Suite", checkin: "2025-05-10", checkout: "2025-05-12", guests: 3, total: 11000, status: "cancelled", phone: "+91 98765 55555", email: "deepak@example.com" },
     ],
   })
 

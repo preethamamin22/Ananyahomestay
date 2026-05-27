@@ -10,7 +10,8 @@ datasource db {
 model Booking {
   id       String @id @default(cuid())
   name     String
-  phone    String?
+  phone    String
+  email    String?
   room     String
   checkin  String
   checkout String
