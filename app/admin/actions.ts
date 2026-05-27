@@ -24,11 +24,11 @@ export async function getDashboardStats() {
   };
 }
 
-  const rooms = await prisma.room.findMany()
-  const bookings = await prisma.booking.findMany({ orderBy: { id: 'desc' } })
-  const reviews = await prisma.review.findMany({ orderBy: { id: 'desc' } })
-  
-  return { rooms, bookings, reviews }
+export async function getDashboardData() {
+  const rooms = await prisma.room.findMany();
+  const bookings = await prisma.booking.findMany({ orderBy: { id: 'desc' } });
+  const reviews = await prisma.review.findMany({ orderBy: { id: 'desc' } });
+  return { rooms, bookings, reviews };
 }
 
 export async function updateBookingStatus(id: string, status: string) {

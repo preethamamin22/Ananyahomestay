@@ -6,7 +6,7 @@ import {
   TrendingUp, Users, DollarSign, Hotel, Menu, X,
 } from "lucide-react";
 
-import { getDashboardData, updateBookingStatus as updateBooking, updateReviewStatus as updateReview, deleteReviewAction } from "./actions";
+import { getDashboardData, getDashboardStats, updateBookingStatus as updateBooking, updateReviewStatus as updateReview, deleteReviewAction } from "./actions";
 
 type BookingType = { id: string, name: string, room: string, checkin: string, checkout: string, guests: number, total: number, status: string, phone: string };
 type ReviewType = { id: number, name: string, rating: number, review: string, date: string, status: string };
@@ -21,6 +21,7 @@ export default function AdminDashboard() {
   const [loginError, setLoginError] = useState("");
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [bookings, setBookings] = useState<BookingType[]>([]);
   const [reviews, setReviews] = useState<ReviewType[]>([]);
   const [rooms, setRooms] = useState<RoomType[]>([]);
@@ -45,6 +46,22 @@ export default function AdminDashboard() {
         occupancyRate: statsData.occupancyRate,
       });
     });
+  }, []);
+
+  // Screen size check for mobile responsiveness
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
 
@@ -91,7 +108,7 @@ export default function AdminDashboard() {
           style={{
             background: "white",
             borderRadius: "28px",
-            padding: "48px 40px",
+            padding: isMobile ? "32px 20px" : "48px 40px",
             width: "100%",
             maxWidth: "420px",
             boxShadow: "0 40px 80px rgba(0,0,0,0.3)",
@@ -174,63 +191,78 @@ export default function AdminDashboard() {
     { id: "analytics", icon: <BarChart3 size={18} />, label: "Analytics" },
   ];
 
-  const stats = [
+  const statsCards = [
     { label: "Total Bookings", value: stats.totalBookings.toString(), icon: <Calendar size={20} />, change: "+12%", color: "#dbeafe", iconColor: "#1e40af" },
     { label: "Revenue", value: `₹${stats.revenue.toLocaleString()}`, icon: <DollarSign size={20} />, change: "+8%", color: "#dcfce7", iconColor: "#166534" },
     { label: "Active Guests", value: stats.activeGuests.toString(), icon: <Users size={20} />, change: "Today", color: "#f3e8ff", iconColor: "#6d28d9" },
     { label: "Occupancy Rate", value: `${stats.occupancyRate}%`, icon: <Hotel size={20} />, change: "+5%", color: "#fef3c7", iconColor: "#92400e" },
   ];
 
+  // Dynamic responsive sidebar styles
+  const sidebarStyle = isMobile
+    ? {
+        position: "fixed" as const,
+        left: sidebarOpen ? "0" : "-260px",
+        top: 0,
+        bottom: 0,
+        width: "260px",
+        zIndex: 50,
+        transition: "left 0.3s ease",
+        display: "flex",
+        flexDirection: "column" as const,
+        height: "100vh",
+        overflow: "hidden",
+      }
+    : {
+        width: sidebarOpen ? "260px" : "72px",
+        transition: "width 0.3s ease",
+        flexShrink: 0,
+        display: "flex",
+        flexDirection: "column" as const,
+        position: "sticky" as const,
+        top: 0,
+        height: "100vh",
+        overflow: "hidden",
+      };
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" }}>
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .admin-sidebar {
-            width: 72px !important;
-          }
-          .admin-sidebar div[style*="padding: 24px 20px"] {
-            display: none;
-          }
-          .admin-main {
-            padding: 16px;
-          }
-          .stats-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-        }
-      `}</style>
+      {/* Mobile Sidebar backdrop */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.4)",
+            backdropFilter: "blur(4px)",
+            zIndex: 40,
+            transition: "opacity 0.3s ease",
+          }}
+        />
+      )}
 
+      {/* Sidebar */}
       <div
         className="admin-sidebar"
-        style={{
-          width: sidebarOpen ? "260px" : "72px",
-          transition: "width 0.3s ease",
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          position: "sticky",
-          top: 0,
-          height: "100vh",
-          overflow: "hidden",
-        }}
+        style={sidebarStyle}
       >
         {/* Logo */}
         <div style={{ padding: "24px 20px", borderBottom: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "var(--gold)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "18px" }}>
             🏡
           </div>
-          {sidebarOpen && (
+          {(isMobile || sidebarOpen) && (
             <div>
               <div style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: "16px", color: "white" }}>Ananya</div>
               <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", letterSpacing: "1px" }}>ADMIN</div>
             </div>
           )}
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => setSidebarOpen(isMobile ? false : !sidebarOpen)}
             style={{ marginLeft: "auto", background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}
           >
-            {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+            {isMobile ? <X size={18} /> : sidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
 
@@ -239,12 +271,17 @@ export default function AdminDashboard() {
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id as TabType)}
+              onClick={() => {
+                setActiveTab(item.id as TabType);
+                if (isMobile) {
+                  setSidebarOpen(false);
+                }
+              }}
               className={`admin-nav-item ${activeTab === item.id ? "active" : ""}`}
-              style={{ width: "100%", border: "none", textAlign: "left", justifyContent: sidebarOpen ? "flex-start" : "center" }}
+              style={{ width: "100%", border: "none", textAlign: "left", justifyContent: (isMobile || sidebarOpen) ? "flex-start" : "center" }}
             >
               {item.icon}
-              {sidebarOpen && <span>{item.label}</span>}
+              {(isMobile || sidebarOpen) && <span>{item.label}</span>}
             </button>
           ))}
         </nav>
@@ -254,18 +291,18 @@ export default function AdminDashboard() {
           <button
             onClick={() => setIsLoggedIn(false)}
             className="admin-nav-item"
-            style={{ width: "100%", border: "none", justifyContent: sidebarOpen ? "flex-start" : "center" }}
+            style={{ width: "100%", border: "none", justifyContent: (isMobile || sidebarOpen) ? "flex-start" : "center" }}
           >
             <LogOut size={18} />
-            {sidebarOpen && <span>Log Out</span>}
+            {(isMobile || sidebarOpen) && <span>Log Out</span>}
           </button>
           <a
             href="/"
             className="admin-nav-item"
-            style={{ display: "flex", marginTop: "4px", justifyContent: sidebarOpen ? "flex-start" : "center" }}
+            style={{ display: "flex", marginTop: "4px", justifyContent: (isMobile || sidebarOpen) ? "flex-start" : "center" }}
           >
             <Eye size={18} />
-            {sidebarOpen && <span>View Website</span>}
+            {(isMobile || sidebarOpen) && <span>View Website</span>}
           </a>
         </div>
       </div>
@@ -276,7 +313,7 @@ export default function AdminDashboard() {
         <div
           style={{
             background: "white",
-            padding: "16px 32px",
+            padding: isMobile ? "16px 20px" : "16px 32px",
             borderBottom: "1px solid #e5e7eb",
             display: "flex",
             alignItems: "center",
@@ -286,12 +323,31 @@ export default function AdminDashboard() {
             zIndex: 10,
           }}
         >
-          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "22px", fontWeight: 700, color: "var(--primary-dark)" }}>
-            {navItems.find(n => n.id === activeTab)?.label}
-          </h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {isMobile && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--primary-dark)",
+                  cursor: "pointer",
+                  padding: "4px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Menu size={22} />
+              </button>
+            )}
+            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: isMobile ? "18px" : "22px", fontWeight: 700, color: "var(--primary-dark)" }}>
+              {navItems.find(n => n.id === activeTab)?.label}
+            </h1>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div style={{ fontSize: "14px", color: "var(--text-muted)" }}>
-              {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+            <div style={{ fontSize: isMobile ? "12px" : "14px", color: "var(--text-muted)" }}>
+              {new Date().toLocaleDateString("en-IN", { weekday: isMobile ? "short" : "long", day: "numeric", month: "short" })}
             </div>
             <div
               style={{
@@ -312,13 +368,20 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div style={{ padding: "32px" }}>
+        <div style={{ padding: isMobile ? "16px" : "32px" }}>
           {/* Dashboard */}
           {activeTab === "dashboard" && (
             <div>
               {/* Stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px", marginBottom: "32px" }}>
-                {stats.map((stat, i) => (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: isMobile ? "16px" : "20px",
+                  marginBottom: "32px"
+                }}
+              >
+                {statsCards.map((stat, i) => (
                   <div key={i} className="admin-stat-card">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
                       <div
@@ -339,7 +402,7 @@ export default function AdminDashboard() {
                         {stat.change}
                       </span>
                     </div>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "28px", fontWeight: 700, color: "var(--primary-dark)" }}>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: isMobile ? "24px" : "28px", fontWeight: 700, color: "var(--primary-dark)" }}>
                       {stat.value}
                     </div>
                     <div style={{ color: "var(--text-muted)", fontSize: "14px" }}>{stat.label}</div>
@@ -348,45 +411,71 @@ export default function AdminDashboard() {
               </div>
 
               {/* Recent bookings */}
-              <div style={{ background: "white", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", marginBottom: "24px" }}>
+              <div style={{ background: "white", borderRadius: "16px", padding: isMobile ? "16px" : "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", marginBottom: "24px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                   <h3 style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "17px" }}>Recent Bookings</h3>
                   <button onClick={() => setActiveTab("bookings")} style={{ color: "var(--primary)", fontSize: "14px", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
                     View All →
                   </button>
                 </div>
-                <div style={{ overflowX: "auto" }}>
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Booking ID</th>
-                        <th>Guest</th>
-                        <th>Room</th>
-                        <th>Check-in</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bookings.slice(0, 4).map(b => (
-                        <tr key={b.id}>
-                          <td style={{ fontWeight: 600, color: "var(--primary)" }}>{b.id}</td>
-                          <td>{b.name}</td>
-                          <td>{b.room}</td>
-                          <td>{b.checkin}</td>
-                          <td style={{ fontWeight: 600 }}>₹{b.total.toLocaleString()}</td>
-                          <td><span className={`status-${b.status}`}>{b.status}</span></td>
+                {isMobile ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {bookings.slice(0, 4).map(b => (
+                      <div
+                        key={b.id}
+                        style={{
+                          padding: "14px",
+                          borderRadius: "12px",
+                          border: "1px solid var(--border)",
+                          background: "#f8fafc"
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                          <span style={{ fontWeight: 600, color: "var(--primary)" }}>{b.id}</span>
+                          <span className={`status-${b.status}`} style={{ fontSize: "11px", fontWeight: 600 }}>{b.status}</span>
+                        </div>
+                        <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "4px" }}>{b.name}</div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "var(--text-muted)" }}>
+                          <span>{b.room} · {b.checkin}</span>
+                          <span style={{ fontWeight: 600, color: "var(--text-dark)" }}>₹{b.total.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Booking ID</th>
+                          <th>Guest</th>
+                          <th>Room</th>
+                          <th>Check-in</th>
+                          <th>Total</th>
+                          <th>Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {bookings.slice(0, 4).map(b => (
+                          <tr key={b.id}>
+                            <td style={{ fontWeight: 600, color: "var(--primary)" }}>{b.id}</td>
+                            <td>{b.name}</td>
+                            <td>{b.room}</td>
+                            <td>{b.checkin}</td>
+                            <td style={{ fontWeight: 600 }}>₹{b.total.toLocaleString()}</td>
+                            <td><span className={`status-${b.status}`}>{b.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               {/* Room status */}
-              <div style={{ background: "white", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
+              <div style={{ background: "white", borderRadius: "16px", padding: isMobile ? "16px" : "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "17px", marginBottom: "20px" }}>Room Status</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px" }}>
                   {rooms.map(room => (
                     <div
                       key={room.id}
@@ -423,77 +512,188 @@ export default function AdminDashboard() {
 
           {/* Bookings */}
           {activeTab === "bookings" && (
-            <div style={{ background: "white", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
+            <div style={{ background: "white", borderRadius: "16px", padding: isMobile ? "16px" : "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
               <h3 style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "17px", marginBottom: "20px" }}>
                 All Bookings ({bookings.length})
               </h3>
-              <div style={{ overflowX: "auto" }}>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Guest Name</th>
-                      <th>Room</th>
-                      <th>Check-in</th>
-                      <th>Check-out</th>
-                      <th>Guests</th>
-                      <th>Total</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bookings.map(b => (
-                      <tr key={b.id}>
-                        <td style={{ fontWeight: 600, color: "var(--primary)" }}>{b.id}</td>
-                        <td>
-                          <div>{b.name}</div>
+              {isMobile ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {bookings.map(b => (
+                    <div
+                      key={b.id}
+                      style={{
+                        background: "white",
+                        borderRadius: "16px",
+                        padding: "20px",
+                        boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                        border: "1px solid var(--border)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" }}>
+                        <div>
+                          <span style={{ fontWeight: 700, color: "var(--primary)" }}>#{b.id}</span>
+                          <span style={{ fontSize: "12px", color: "var(--text-muted)", marginLeft: "8px" }}>{b.room}</span>
+                        </div>
+                        <span className={`status-${b.status}`} style={{ fontSize: "11px", fontWeight: 600 }}>{b.status}</span>
+                      </div>
+                      
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                        <div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Guest</div>
+                          <div style={{ fontWeight: 600, fontSize: "14px" }}>{b.name}</div>
                           <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{b.phone}</div>
-                        </td>
-                        <td>{b.room}</td>
-                        <td>{b.checkin}</td>
-                        <td>{b.checkout}</td>
-                        <td style={{ textAlign: "center" }}>{b.guests}</td>
-                        <td style={{ fontWeight: 600 }}>₹{b.total.toLocaleString()}</td>
-                        <td><span className={`status-${b.status}`}>{b.status}</span></td>
-                        <td>
-                          <div style={{ display: "flex", gap: "8px" }}>
-                            {b.status === "pending" && (
-                              <>
-                                <button
-                                  onClick={() => updateBookingStatus(b.id, "confirmed")}
-                                  style={{ background: "none", border: "none", cursor: "pointer", color: "#16a34a", display: "flex" }}
-                                  title="Confirm"
-                                >
-                                  <CheckCircle size={18} />
-                                </button>
-                                <button
-                                  onClick={() => updateBookingStatus(b.id, "cancelled")}
-                                  style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", display: "flex" }}
-                                  title="Cancel"
-                                >
-                                  <XCircle size={18} />
-                                </button>
-                              </>
-                            )}
-                            <a
-                              href={`https://wa.me/${b.phone.replace(/\D/g, "")}?text=Hi%20${encodeURIComponent(b.name)}%2C%20your%20booking%20at%20Ananya%20Home%20Stay%20is%20confirmed!`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: "#25d366", display: "flex" }}
-                              title="WhatsApp"
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Total Amount</div>
+                          <div style={{ fontWeight: 700, fontSize: "15px", color: "var(--primary-dark)" }}>₹{b.total.toLocaleString()}</div>
+                          <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{b.guests} guests</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Check-in</div>
+                          <div style={{ fontWeight: 600, fontSize: "13px" }}>{b.checkin}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Check-out</div>
+                          <div style={{ fontWeight: 600, fontSize: "13px" }}>{b.checkout}</div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
+                        {b.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() => updateBookingStatus(b.id, "confirmed")}
+                              style={{
+                                background: "#dcfce7",
+                                color: "#166534",
+                                border: "none",
+                                padding: "6px 12px",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                fontSize: "12px",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px"
+                              }}
                             >
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                              </svg>
-                            </a>
-                          </div>
-                        </td>
+                              <CheckCircle size={14} /> Confirm
+                            </button>
+                            <button
+                              onClick={() => updateBookingStatus(b.id, "cancelled")}
+                              style={{
+                                background: "#fee2e2",
+                                color: "#dc2626",
+                                border: "none",
+                                padding: "6px 12px",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                fontSize: "12px",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px"
+                              }}
+                            >
+                              <XCircle size={14} /> Cancel
+                            </button>
+                          </>
+                        )}
+                        <a
+                          href={`https://wa.me/${b.phone.replace(/\D/g, "")}?text=Hi%20${encodeURIComponent(b.name)}%2C%20your%20booking%20at%20Ananya%20Home%20Stay%20is%20confirmed!`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            background: "#e8fbee",
+                            color: "#25d366",
+                            border: "none",
+                            padding: "6px 12px",
+                            borderRadius: "8px",
+                            fontWeight: 600,
+                            fontSize: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            textDecoration: "none"
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                          </svg> WhatsApp
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Guest Name</th>
+                        <th>Room</th>
+                        <th>Check-in</th>
+                        <th>Check-out</th>
+                        <th>Guests</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {bookings.map(b => (
+                        <tr key={b.id}>
+                          <td style={{ fontWeight: 600, color: "var(--primary)" }}>{b.id}</td>
+                          <td>
+                            <div>{b.name}</div>
+                            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{b.phone}</div>
+                          </td>
+                          <td>{b.room}</td>
+                          <td>{b.checkin}</td>
+                          <td>{b.checkout}</td>
+                          <td style={{ textAlign: "center" }}>{b.guests}</td>
+                          <td style={{ fontWeight: 600 }}>₹{b.total.toLocaleString()}</td>
+                          <td><span className={`status-${b.status}`}>{b.status}</span></td>
+                          <td>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              {b.status === "pending" && (
+                                <>
+                                  <button
+                                    onClick={() => updateBookingStatus(b.id, "confirmed")}
+                                    style={{ background: "none", border: "none", cursor: "pointer", color: "#16a34a", display: "flex" }}
+                                    title="Confirm"
+                                  >
+                                    <CheckCircle size={18} />
+                                  </button>
+                                  <button
+                                    onClick={() => updateBookingStatus(b.id, "cancelled")}
+                                    style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", display: "flex" }}
+                                    title="Cancel"
+                                  >
+                                    <XCircle size={18} />
+                                  </button>
+                                </>
+                              )}
+                              <a
+                                href={`https://wa.me/${b.phone.replace(/\D/g, "")}?text=Hi%20${encodeURIComponent(b.name)}%2C%20your%20booking%20at%20Ananya%20Home%20Stay%20is%20confirmed!`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: "#25d366", display: "flex" }}
+                                title="WhatsApp"
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                </svg>
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -512,59 +712,76 @@ export default function AdminDashboard() {
                     style={{
                       background: "white",
                       borderRadius: "16px",
-                      padding: "24px",
+                      padding: isMobile ? "20px" : "24px",
                       boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
                       display: "flex",
-                      alignItems: "center",
-                      gap: "24px",
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                      gap: isMobile ? "16px" : "24px",
                     }}
                   >
+                    <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1 }}>
+                      <div
+                        style={{
+                          width: "56px",
+                          height: "56px",
+                          borderRadius: "14px",
+                          background: "var(--bg-green-light)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "24px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        🛏️
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "17px" }}>{room.name}</div>
+                        <div style={{ color: "var(--text-muted)", fontSize: "14px" }}>
+                          Capacity: {room.capacity} guests · {room.bookings} total bookings
+                        </div>
+                      </div>
+                    </div>
+                    
                     <div
                       style={{
-                        width: "56px",
-                        height: "56px",
-                        borderRadius: "14px",
-                        background: "var(--bg-green-light)",
                         display: "flex",
+                        justifyContent: "space-between",
                         alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "24px",
-                        flexShrink: 0,
+                        gap: "16px",
+                        borderTop: isMobile ? "1px solid var(--border)" : "none",
+                        paddingTop: isMobile ? "16px" : 0,
                       }}
                     >
-                      🛏️
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "17px" }}>{room.name}</div>
-                      <div style={{ color: "var(--text-muted)", fontSize: "14px" }}>
-                        Capacity: {room.capacity} guests · {room.bookings} total bookings
+                      <div style={{ textAlign: isMobile ? "left" : "right" }}>
+                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "22px", fontWeight: 700, color: "var(--primary)" }}>
+                          ₹{room.price.toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>per night</div>
                       </div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "22px", fontWeight: 700, color: "var(--primary)" }}>
-                        ₹{room.price.toLocaleString()}
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <span
+                          style={{
+                            padding: "6px 14px",
+                            borderRadius: "50px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            background: room.status === "occupied" ? "#fef08a" : "#bbf7d0",
+                            color: room.status === "occupied" ? "#854d0e" : "#166534",
+                          }}
+                        >
+                          {room.status}
+                        </span>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button style={{ background: "var(--bg-green-light)", border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer", color: "var(--primary)", display: "flex" }}>
+                            <Pencil size={16} />
+                          </button>
+                          <button style={{ background: "#fee2e2", border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer", color: "#dc2626", display: "flex" }}>
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>per night</div>
-                    </div>
-                    <span
-                      style={{
-                        padding: "6px 14px",
-                        borderRadius: "50px",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        background: room.status === "occupied" ? "#fef08a" : "#bbf7d0",
-                        color: room.status === "occupied" ? "#854d0e" : "#166534",
-                      }}
-                    >
-                      {room.status}
-                    </span>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button style={{ background: "var(--bg-green-light)", border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer", color: "var(--primary)", display: "flex" }}>
-                        <Pencil size={16} />
-                      </button>
-                      <button style={{ background: "#fee2e2", border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer", color: "#dc2626", display: "flex" }}>
-                        <Trash2 size={16} />
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -581,12 +798,21 @@ export default function AdminDashboard() {
                   style={{
                     background: "white",
                     borderRadius: "16px",
-                    padding: "24px",
+                    padding: isMobile ? "16px" : "24px",
                     boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
                     border: review.status === "pending" ? "2px solid #fef08a" : "2px solid #bbf7d0",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: isMobile ? "column" : "row",
+                      justifyContent: "space-between",
+                      alignItems: isMobile ? "stretch" : "flex-start",
+                      gap: isMobile ? "12px" : "24px",
+                      marginBottom: "12px"
+                    }}
+                  >
                     <div>
                       <div style={{ fontWeight: 700, color: "var(--primary-dark)" }}>{review.name}</div>
                       <div style={{ color: "var(--text-muted)", fontSize: "13px" }}>{review.date}</div>
@@ -596,7 +822,7 @@ export default function AdminDashboard() {
                         ))}
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center", justifyContent: isMobile ? "space-between" : "flex-end" }}>
                       <span
                         style={{
                           padding: "4px 12px",
@@ -609,23 +835,25 @@ export default function AdminDashboard() {
                       >
                         {review.status}
                       </span>
-                      {review.status === "pending" && (
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        {review.status === "pending" && (
+                          <button
+                            onClick={() => updateReviewStatus(review.id, "approved")}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "#16a34a", display: "flex" }}
+                          >
+                            <CheckCircle size={20} />
+                          </button>
+                        )}
                         <button
-                          onClick={() => updateReviewStatus(review.id, "approved")}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "#16a34a", display: "flex" }}
+                          onClick={() => deleteReview(review.id)}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", display: "flex" }}
                         >
-                          <CheckCircle size={20} />
+                          <Trash2 size={18} />
                         </button>
-                      )}
-                      <button
-                        onClick={() => deleteReview(review.id)}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", display: "flex" }}
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      </div>
                     </div>
                   </div>
-                  <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: 1.7, fontStyle: "italic" }}>
+                  <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: 1.7, fontStyle: "italic", borderTop: isMobile ? "1px solid var(--border)" : "none", paddingTop: isMobile ? "12px" : 0 }}>
                     "{review.review}"
                   </p>
                 </div>
@@ -635,11 +863,11 @@ export default function AdminDashboard() {
 
           {/* Analytics */}
           {activeTab === "analytics" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "24px" }}>
               {/* Revenue chart placeholder */}
-              <div style={{ background: "white", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", gridColumn: "span 2" }}>
+              <div style={{ background: "white", borderRadius: "16px", padding: isMobile ? "16px" : "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", gridColumn: isMobile ? "span 1" : "span 2" }}>
                 <h3 style={{ fontWeight: 700, color: "var(--primary-dark)", marginBottom: "20px" }}>Revenue Overview (Last 6 Months)</h3>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: "16px", height: "180px" }}>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? "8px" : "16px", height: "180px", overflowX: isMobile ? "auto" : "visible", paddingBottom: isMobile ? "8px" : 0 }}>
                   {[
                     { month: "Oct", revenue: 85000 },
                     { month: "Nov", revenue: 110000 },
@@ -651,7 +879,7 @@ export default function AdminDashboard() {
                     const maxRev = 210000;
                     const height = Math.round((d.revenue / maxRev) * 160);
                     return (
-                      <div key={d.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                      <div key={d.month} style={{ flex: isMobile ? "0 0 60px" : 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
                         <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>₹{(d.revenue / 1000).toFixed(0)}k</div>
                         <div
                           style={{
@@ -672,7 +900,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Booking sources */}
-              <div style={{ background: "white", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
+              <div style={{ background: "white", borderRadius: "16px", padding: isMobile ? "16px" : "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ fontWeight: 700, color: "var(--primary-dark)", marginBottom: "20px" }}>Booking Sources</h3>
                 {[
                   { source: "Direct (Website)", pct: 45, color: "var(--primary)" },
@@ -693,7 +921,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Guest types */}
-              <div style={{ background: "white", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
+              <div style={{ background: "white", borderRadius: "16px", padding: isMobile ? "16px" : "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ fontWeight: 700, color: "var(--primary-dark)", marginBottom: "20px" }}>Guest Types</h3>
                 {[
                   { type: "Couple", count: 42, pct: 48 },
