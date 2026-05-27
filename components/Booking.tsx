@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
-import { getBookedDates, createBookingAction } from '@/app/admin/actions';
+import { getBookedDates } from '@/app/admin/actions';
 
 const breakfastMenu = [
   "Idli with Chutney, Sambar & Kesari Bath",
@@ -109,27 +109,36 @@ export default function Booking() {
     if (!validate()) return;
     setLoading(true);
     setError("");
-    
+
     try {
-      const result = await createBookingAction({
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        room: form.room,
-        checkin: form.checkIn,
-        checkout: form.checkOut,
-        guests: parseInt(form.guests),
-        total: totalPrice,
-        status: "pending",
+      const res = await fetch("/api/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          room: form.room,
+          checkin: form.checkIn,
+          checkout: form.checkOut,
+          guests: parseInt(form.guests),
+          total: totalPrice,
+          status: "pending",
+        }),
       });
-      if (result && !result.success) {
+
+      const result = await res.json();
+
+      if (!result.success) {
         setError(`Booking failed: ${result.error}`);
         setLoading(false);
         return;
       }
-      // Success!
+
+      // ✅ Success!
       setLoading(false);
       setSubmitted(true);
+
       // Send WhatsApp notification
       const mealInfo = isFullPackage
         ? `\n🍳 Breakfast: ${form.breakfastChoice}\n🍛 Dinner: ${form.dinnerChoice}`
@@ -137,10 +146,10 @@ export default function Booking() {
       const msg = `🏡 *New Booking at Ananya Home Stay*\n\n👤 Name: ${form.name}\n📞 Phone: ${form.phone}\n📧 Email: ${form.email}\n📦 Package: ${packageLabel}\n🏠 Room: ${form.room}\n📅 Check-in: ${form.checkIn}\n📅 Check-out: ${form.checkOut}\n👥 Guests: ${form.guests}\n💰 Total: ₹${totalPrice.toLocaleString()}${mealInfo}\n📝 Requests: ${form.requests || "None"}`;
       const waUrl = `https://wa.me/919482629145?text=${encodeURIComponent(msg)}`;
       setTimeout(() => window.open(waUrl, "_blank"), 2000);
+
     } catch (err: any) {
       console.error("Booking error:", err);
-      const msg = err?.message || "Unknown error";
-      setError(`Booking failed: ${msg}`);
+      setError(`Booking failed: ${err?.message || "Network error"}`);
       setLoading(false);
     }
   };
