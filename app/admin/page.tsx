@@ -1,32 +1,17 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard, BedDouble, Calendar, Star, BarChart3,
   LogOut, Plus, Pencil, Trash2, CheckCircle, XCircle, Eye,
   TrendingUp, Users, DollarSign, Hotel, Menu, X,
 } from "lucide-react";
 
-// Mock data
-const mockBookings = [
-  { id: "BK001", name: "Priya Sharma", room: "Deluxe Garden Room", checkin: "2025-04-10", checkout: "2025-04-13", guests: 2, total: 10500, status: "confirmed", phone: "+91 98765 11111" },
-  { id: "BK002", name: "Rahul Verma", room: "Family Suite", checkin: "2025-04-15", checkout: "2025-04-18", guests: 4, total: 16500, status: "pending", phone: "+91 98765 22222" },
-  { id: "BK003", name: "Arjun Nair", room: "Cozy Standard", checkin: "2025-04-20", checkout: "2025-04-22", guests: 1, total: 4400, status: "confirmed", phone: "+91 98765 33333" },
-  { id: "BK004", name: "Sneha Kulkarni", room: "Deluxe Garden Room", checkin: "2025-05-01", checkout: "2025-05-05", guests: 2, total: 14000, status: "pending", phone: "+91 98765 44444" },
-  { id: "BK005", name: "Deepak Gowda", room: "Family Suite", checkin: "2025-05-10", checkout: "2025-05-12", guests: 3, total: 11000, status: "cancelled", phone: "+91 98765 55555" },
-];
+import { getDashboardData, updateBookingStatus as updateBooking, updateReviewStatus as updateReview, deleteReviewAction } from "./actions";
 
-const mockReviews = [
-  { id: 1, name: "Priya Sharma", rating: 5, review: "Absolutely magical! The coffee plantation view is breathtaking.", date: "March 2025", status: "approved" },
-  { id: 2, name: "Rahul Verma", rating: 5, review: "Perfect family vacation. Kids loved the plantation walk!", date: "February 2025", status: "pending" },
-  { id: 3, name: "Arjun Nair", rating: 5, review: "Best homestay in Coorg. Highly recommended!", date: "January 2025", status: "approved" },
-  { id: 4, name: "Anonymous", rating: 2, review: "WiFi was slow, not great experience.", date: "March 2025", status: "pending" },
-];
+type BookingType = { id: string, name: string, room: string, checkin: string, checkout: string, guests: number, total: number, status: string, phone: string };
+type ReviewType = { id: number, name: string, rating: number, review: string, date: string, status: string };
+type RoomType = { id: string, name: string, price: number, capacity: number, status: string, bookings: number };
 
-const mockRooms = [
-  { id: "deluxe", name: "Deluxe Garden Room", price: 3500, capacity: 2, status: "available", bookings: 42 },
-  { id: "family", name: "Family Suite", price: 5500, capacity: 4, status: "occupied", bookings: 28 },
-  { id: "budget", name: "Cozy Standard Room", price: 2200, capacity: 2, status: "available", bookings: 35 },
-];
 
 type TabType = "dashboard" | "bookings" | "rooms" | "reviews" | "analytics";
 
@@ -36,8 +21,32 @@ export default function AdminDashboard() {
   const [loginError, setLoginError] = useState("");
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [bookings, setBookings] = useState(mockBookings);
-  const [reviews, setReviews] = useState(mockReviews);
+  const [bookings, setBookings] = useState<BookingType[]>([]);
+  const [reviews, setReviews] = useState<ReviewType[]>([]);
+  const [rooms, setRooms] = useState<RoomType[]>([]);
+
+  const [stats, setStats] = useState({
+    totalBookings: 0,
+    revenue: 0,
+    activeGuests: 0,
+    occupancyRate: 0,
+  });
+
+  useEffect(() => {
+    // fetch dashboard data and stats
+    Promise.all([getDashboardData(), getDashboardStats()]).then(([data, statsData]) => {
+      setBookings(data.bookings);
+      setReviews(data.reviews);
+      setRooms(data.rooms);
+      setStats({
+        totalBookings: statsData.totalBookings,
+        revenue: statsData.revenue,
+        activeGuests: statsData.activeGuests,
+        occupancyRate: statsData.occupancyRate,
+      });
+    });
+  }, []);
+
 
   // Login handler
   const handleLogin = (e: React.FormEvent) => {
@@ -50,15 +59,18 @@ export default function AdminDashboard() {
     }
   };
 
-  const updateBookingStatus = (id: string, status: string) => {
+  const updateBookingStatus = async (id: string, status: string) => {
+    await updateBooking(id, status);
     setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
   };
 
-  const updateReviewStatus = (id: number, status: string) => {
+  const updateReviewStatus = async (id: number, status: string) => {
+    await updateReview(id, status);
     setReviews(prev => prev.map(r => r.id === id ? { ...r, status } : r));
   };
 
-  const deleteReview = (id: number) => {
+  const deleteReview = async (id: number) => {
+    await deleteReviewAction(id);
     setReviews(prev => prev.filter(r => r.id !== id));
   };
 
@@ -163,15 +175,32 @@ export default function AdminDashboard() {
   ];
 
   const stats = [
-    { label: "Total Bookings", value: "87", icon: <Calendar size={20} />, change: "+12%", color: "#dbeafe", iconColor: "#1e40af" },
-    { label: "Revenue (Mar)", value: "₹2.1L", icon: <DollarSign size={20} />, change: "+8%", color: "#dcfce7", iconColor: "#166534" },
-    { label: "Active Guests", value: "6", icon: <Users size={20} />, change: "Today", color: "#f3e8ff", iconColor: "#6d28d9" },
-    { label: "Occupancy Rate", value: "78%", icon: <Hotel size={20} />, change: "+5%", color: "#fef3c7", iconColor: "#92400e" },
+    { label: "Total Bookings", value: stats.totalBookings.toString(), icon: <Calendar size={20} />, change: "+12%", color: "#dbeafe", iconColor: "#1e40af" },
+    { label: "Revenue", value: `₹${stats.revenue.toLocaleString()}`, icon: <DollarSign size={20} />, change: "+8%", color: "#dcfce7", iconColor: "#166534" },
+    { label: "Active Guests", value: stats.activeGuests.toString(), icon: <Users size={20} />, change: "Today", color: "#f3e8ff", iconColor: "#6d28d9" },
+    { label: "Occupancy Rate", value: `${stats.occupancyRate}%`, icon: <Hotel size={20} />, change: "+5%", color: "#fef3c7", iconColor: "#92400e" },
   ];
+
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" }}>
-      {/* Sidebar */}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .admin-sidebar {
+            width: 72px !important;
+          }
+          .admin-sidebar div[style*="padding: 24px 20px"] {
+            display: none;
+          }
+          .admin-main {
+            padding: 16px;
+          }
+          .stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+      `}</style>
+
       <div
         className="admin-sidebar"
         style={{
@@ -358,7 +387,7 @@ export default function AdminDashboard() {
               <div style={{ background: "white", borderRadius: "16px", padding: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
                 <h3 style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "17px", marginBottom: "20px" }}>Room Status</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
-                  {mockRooms.map(room => (
+                  {rooms.map(room => (
                     <div
                       key={room.id}
                       style={{
@@ -477,7 +506,7 @@ export default function AdminDashboard() {
                 </button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {mockRooms.map(room => (
+                {rooms.map(room => (
                   <div
                     key={room.id}
                     style={{

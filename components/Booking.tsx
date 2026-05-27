@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Send,
   CheckCircle,
@@ -13,6 +13,9 @@ import {
   Coffee,
   ChevronDown,
 } from "lucide-react";
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
+import { getBookedDates } from '@/app/admin/actions';
 
 const breakfastMenu = [
   "Idli with Chutney, Sambar & Kesari Bath",
@@ -52,6 +55,22 @@ export default function Booking() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [bookedDates, setBookedDates] = useState<Date[]>([]);
+
+  useEffect(() => {
+    getBookedDates().then((data) => {
+      const dates: Date[] = [];
+      data.forEach((b) => {
+        let current = new Date(b.checkin);
+        const end = new Date(b.checkout);
+        while (current < end) {
+          dates.push(new Date(current));
+          current.setDate(current.getDate() + 1);
+        }
+      });
+      setBookedDates(dates);
+    });
+  }, []);
 
   const guestCount = parseInt(form.guests) || 1;
   const isFullPackage = form.packageType === "full-experience";
@@ -640,6 +659,25 @@ export default function Booking() {
                     ? "*Includes stay, breakfast, dinner & campfire."
                     : "*Accommodation only. GST extra."}
                 </p>
+              </div>
+            </div>
+
+            {/* Calendar */}
+            <div style={{ background: "white", borderRadius: "20px", padding: "28px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
+              <h4 style={{ fontWeight: 700, color: "var(--primary-dark)", marginBottom: "16px", fontSize: "15px" }}>
+                📅 Check Availability
+              </h4>
+              <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "12px" }}>
+                Highlighted dates are already booked.
+              </p>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <DayPicker
+                  mode="multiple"
+                  selected={bookedDates}
+                  disabled={bookedDates}
+                  modifiers={{ booked: bookedDates }}
+                  modifiersStyles={{ booked: { color: 'white', backgroundColor: '#dc2626' } }}
+                />
               </div>
             </div>
 
