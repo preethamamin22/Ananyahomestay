@@ -13,32 +13,38 @@ async function getPrisma() {
   }
 }
 
-// Zero-config cloud bookings bucket helpers
+// Zero-config cloud bookings bucket helpers (Refactored to Neon PostgreSQL)
 async function getCloudBookings(): Promise<any[]> {
   try {
-    const getRes = await fetch("https://kvdb.io/K9mU6x2nBqZy7s3d8vReWp/bookings", { cache: "no-store" });
-    if (getRes.ok) {
-      const data = await getRes.json();
-      if (Array.isArray(data)) return data;
+    const prisma = await getPrisma()
+    if (prisma) {
+      const dbBookings = await prisma.booking.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: { room: true },
+      })
+      return dbBookings.map(b => ({
+        id: b.id,
+        name: b.name,
+        phone: b.phone || '',
+        email: b.email || '',
+        room: b.room ? b.room.name : 'Deluxe Garden Room',
+        checkin: b.checkin.toISOString().split('T')[0],
+        checkout: b.checkout.toISOString().split('T')[0],
+        guests: b.guests,
+        total: b.total,
+        status: b.status,
+        createdAt: b.createdAt.toISOString(),
+      }))
     }
   } catch (e) {
-    console.error("Error loading cloud bookings:", e);
+    console.error("Error loading db bookings:", e);
   }
   return [];
 }
 
 async function saveCloudBookings(bookings: any[]): Promise<boolean> {
-  try {
-    const putRes = await fetch("https://kvdb.io/K9mU6x2nBqZy7s3d8vReWp/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(bookings),
-    });
-    return putRes.ok;
-  } catch (e) {
-    console.error("Error saving cloud bookings:", e);
-    return false;
-  }
+  // Deprecated helper since we save directly to Neon PostgreSQL. Returns true for backward compatibility.
+  return true;
 }
 
 export async function getDashboardStats() {
@@ -78,10 +84,27 @@ export async function getDashboardData() {
     let rooms: { id: string; name: string; price: number; capacity: number; status: string; bookingsCount: number }[] = [];
     let reviews: { id: number; name: string; rating: number; review: string; date: string; status: string }[] = [];
 
-    // Fallback/Mock load for rooms and reviews if prisma/sqlite fails
     if (prisma) {
       try {
         rooms = await prisma.room.findMany();
+        
+        // Auto-seed rooms in DB if empty to guarantee database initial state
+        if (rooms.length === 0) {
+          const defaultRooms = [
+            { id: "deluxe-garden-room", name: "Deluxe Garden Room", price: 1200, capacity: 2, status: "available" },
+            { id: "family-suite", name: "Family Suite", price: 1200, capacity: 4, status: "available" },
+            { id: "cozy-standard-room", name: "Cozy Standard Room", price: 800, capacity: 2, status: "available" },
+          ];
+          for (const r of defaultRooms) {
+            await prisma.room.upsert({
+              where: { id: r.id },
+              update: {},
+              create: r
+            });
+          }
+          rooms = await prisma.room.findMany();
+        }
+
         const rawReviews = await prisma.testimonial.findMany({ orderBy: { id: 'desc' } });
         reviews = rawReviews.map(r => ({
           id: r.id,
@@ -110,7 +133,7 @@ export async function getDashboardData() {
       price: r.price,
       capacity: r.capacity,
       status: r.status,
-      bookings: r.bookingsCount ?? 0,
+      bookings: bookingsList.filter(b => b.room === r.name).length,
     }));
 
     return { rooms: serializedRooms, bookings: bookingsList, reviews };
@@ -122,10 +145,14 @@ export async function getDashboardData() {
 
 export async function updateBookingStatus(id: string, status: string) {
   try {
-    const bookings = await getCloudBookings();
-    const updated = bookings.map(b => b.id === id ? { ...b, status } : b);
-    await saveCloudBookings(updated);
-    revalidatePath('/admin')
+    const prisma = await getPrisma()
+    if (prisma) {
+      await prisma.booking.update({
+        where: { id },
+        data: { status }
+      });
+      revalidatePath('/admin')
+    }
   } catch (err) {
     console.error('Error updating booking status:', err)
   }
@@ -135,44 +162,17 @@ export async function updateRoomPrice(id: string, price: number, capacity: numbe
   try {
     const prisma = await getPrisma();
     if (prisma) {
-      try {
-        await prisma.room.update({
-          where: { id },
-          data: { price, capacity },
-        });
-      } catch (dbErr) {
-        console.warn('DB room update skipped:', dbErr);
-      }
+      await prisma.room.update({
+        where: { id },
+        data: { price, capacity },
+      });
+      revalidatePath('/admin');
+      return { success: true };
     }
-
-    // Also persist to cloud so booking form can read dynamic prices
-    let cloudRooms: any[] = [];
-    try {
-      const res = await fetch('https://kvdb.io/K9mU6x2nBqZy7s3d8vReWp/rooms', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) cloudRooms = data;
-      }
-    } catch {}
-
-    const existingIdx = cloudRooms.findIndex((r: any) => r.id === id);
-    if (existingIdx >= 0) {
-      cloudRooms[existingIdx] = { ...cloudRooms[existingIdx], price, capacity };
-    } else {
-      cloudRooms.push({ id, price, capacity });
-    }
-
-    await fetch('https://kvdb.io/K9mU6x2nBqZy7s3d8vReWp/rooms', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cloudRooms),
-    });
-
-    revalidatePath('/admin');
-    return { success: true };
-  } catch (err) {
+    return { success: false, error: 'Database client not available' };
+  } catch (err: any) {
     console.error('Error updating room price:', err);
-    return { success: false };
+    return { success: false, error: err?.message || 'Failed to update room price' };
   }
 }
 
@@ -226,26 +226,51 @@ export async function createBookingAction(data: {
   status: string;
 }) {
   try {
-    const bookings = await getCloudBookings();
-    const newBooking = {
-      id: `BK-${Date.now().toString().slice(-4)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-      name: data.name,
-      phone: data.phone,
-      email: data.email,
-      room: data.room,
-      checkin: data.checkin,
-      checkout: data.checkout,
-      guests: data.guests,
-      total: data.total,
-      status: data.status,
-      createdAt: new Date().toISOString(),
-    };
+    const prisma = await getPrisma()
+    if (!prisma) throw new Error("Prisma client not available")
 
-    bookings.unshift(newBooking);
-    await saveCloudBookings(bookings);
+    let roomRecord = await prisma.room.findFirst({ where: { name: data.room } })
+    if (!roomRecord) {
+      const roomId = data.room.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      
+      let price = 1200
+      let capacity = 4
+      
+      if (data.room.toLowerCase().includes('cozy')) {
+        price = 800
+        capacity = 2
+      } else if (data.room.toLowerCase().includes('deluxe')) {
+        price = 1200
+        capacity = 2
+      }
+
+      roomRecord = await prisma.room.create({
+        data: { id: roomId, name: data.room, price, capacity, status: 'available' }
+      })
+    }
+
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase()
+    const newBookingId = `BK-${Date.now().toString().slice(-4)}-${randomPart}`
+
+    const newBooking = await prisma.booking.create({
+      data: {
+        id: newBookingId,
+        name: data.name,
+        phone: data.phone || '',
+        email: data.email || '',
+        roomId: roomRecord.id,
+        checkin: new Date(data.checkin),
+        checkout: new Date(data.checkout),
+        guests: Number(data.guests) || 1,
+        total: Number(data.total) || 0,
+        status: data.status || 'pending',
+      }
+    })
+
+    revalidatePath('/admin')
     return { success: true, id: newBooking.id };
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error creating booking via action:', err)
-    return { success: true, id: `BK-${Date.now()}` }
+    return { success: false, error: err?.message || 'Failed to create booking' }
   }
 }

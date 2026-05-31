@@ -120,45 +120,33 @@ export default function Booking() {
       setSubmitted(true);
       setLoading(false);
 
-      // Async save to cloud store to notify Admin Dashboard in real time
+      // Async save to Neon PostgreSQL database in real time
       // Does not block the guest's redirection or UI success state!
       (async () => {
         try {
-          const bookingRecord = {
-            id: localId,
-            name: form.name,
-            phone: form.phone,
-            email: form.email,
-            room: form.room,
-            checkin: form.checkIn,
-            checkout: form.checkOut,
-            guests: parseInt(form.guests),
-            total: totalPrice,
-            status: "pending",
-            createdAt: new Date().toISOString(),
-          };
-
-          // Fetch current bookings list from bucket
-          const getRes = await fetch("https://kvdb.io/K9mU6x2nBqZy7s3d8vReWp/bookings", { cache: "no-store" });
-          let currentBookings = [];
-          if (getRes.ok) {
-            try {
-              currentBookings = await getRes.json();
-              if (!Array.isArray(currentBookings)) currentBookings = [];
-            } catch {}
-          }
-          
-          // Append new booking to top
-          currentBookings.unshift(bookingRecord);
-          
-          // Save updated list
-          await fetch("https://kvdb.io/K9mU6x2nBqZy7s3d8vReWp/bookings", {
+          const res = await fetch("/api/booking", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(currentBookings.slice(0, 100)),
+            body: JSON.stringify({
+              id: localId,
+              name: form.name,
+              phone: form.phone,
+              email: form.email,
+              room: form.room,
+              checkin: form.checkIn,
+              checkout: form.checkOut,
+              guests: parseInt(form.guests),
+              total: totalPrice,
+            }),
           });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            console.error("Database save failed:", errData);
+          } else {
+            console.log("💾 Booking registered in local database via API");
+          }
         } catch (cloudErr) {
-          console.warn("Dashboard sync warning:", cloudErr);
+          console.error("Database sync error:", cloudErr);
         }
       })();
 
