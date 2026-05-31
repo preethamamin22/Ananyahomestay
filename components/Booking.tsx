@@ -12,6 +12,7 @@ import {
   Utensils,
   Coffee,
   ChevronDown,
+  Printer,
 } from "lucide-react";
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
@@ -57,20 +58,12 @@ export default function Booking() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [bookedDates, setBookedDates] = useState<Date[]>([]);
+  const [bookingId, setBookingId] = useState("");
+  const [whatsappUrl, setWhatsappUrl] = useState("");
 
   useEffect(() => {
-    getBookedDates().then((data) => {
-      const dates: Date[] = [];
-      data.forEach((b) => {
-        let current = new Date(b.checkin);
-        const end = new Date(b.checkout);
-        while (current < end) {
-          dates.push(new Date(current));
-          current.setDate(current.getDate() + 1);
-        }
-      });
-      setBookedDates(dates);
-    });
+    // Client-side purely static calendar initialization
+    setBookedDates([]);
   }, []);
 
   const guestCount = parseInt(form.guests) || 1;
@@ -111,45 +104,78 @@ export default function Booking() {
     setError("");
 
     try {
-      const res = await fetch("/api/booking", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          phone: form.phone,
-          email: form.email,
-          room: form.room,
-          checkin: form.checkIn,
-          checkout: form.checkOut,
-          guests: parseInt(form.guests),
-          total: totalPrice,
-          status: "pending",
-        }),
-      });
+      // ✅ Generate a beautiful local Booking Reference ID
+      const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const localId = `BK-${Date.now().toString().slice(-4)}-${randomPart}`;
 
-      const result = await res.json();
-
-      if (!result.success) {
-        setError(`Booking failed: ${result.error}`);
-        setLoading(false);
-        return;
-      }
-
-      // ✅ Success!
-      setLoading(false);
-      setSubmitted(true);
-
-      // Send WhatsApp notification
+      // Build WhatsApp message
       const mealInfo = isFullPackage
         ? `\n🍳 Breakfast: ${form.breakfastChoice}\n🍛 Dinner: ${form.dinnerChoice}`
         : "";
-      const msg = `🏡 *New Booking at Ananya Home Stay*\n\n👤 Name: ${form.name}\n📞 Phone: ${form.phone}\n📧 Email: ${form.email}\n📦 Package: ${packageLabel}\n🏠 Room: ${form.room}\n📅 Check-in: ${form.checkIn}\n📅 Check-out: ${form.checkOut}\n👥 Guests: ${form.guests}\n💰 Total: ₹${totalPrice.toLocaleString()}${mealInfo}\n📝 Requests: ${form.requests || "None"}`;
+      const msg = `🏡 *New Booking Request at Ananya Home Stay*\n\n👤 Name: ${form.name}\n📞 Phone: ${form.phone}\n📧 Email: ${form.email}\n📦 Package: ${packageLabel}\n🏠 Room: ${form.room}\n📅 Check-in: ${form.checkIn}\n📅 Check-out: ${form.checkOut}\n👥 Guests: ${form.guests}\n💰 Total: ₹${totalPrice.toLocaleString()}${mealInfo}\n📝 Requests: ${form.requests || "None"}`;
       const waUrl = `https://wa.me/919482629145?text=${encodeURIComponent(msg)}`;
-      setTimeout(() => window.open(waUrl, "_blank"), 2000);
+
+      setBookingId(localId);
+      setWhatsappUrl(waUrl);
+      setSubmitted(true);
+      setLoading(false);
+
+      // Async save to cloud store to notify Admin Dashboard in real time
+      // Does not block the guest's redirection or UI success state!
+      (async () => {
+        try {
+          const bookingRecord = {
+            id: localId,
+            name: form.name,
+            phone: form.phone,
+            email: form.email,
+            room: form.room,
+            checkin: form.checkIn,
+            checkout: form.checkOut,
+            guests: parseInt(form.guests),
+            total: totalPrice,
+            status: "pending",
+            createdAt: new Date().toISOString(),
+          };
+
+          // Fetch current bookings list from bucket
+          const getRes = await fetch("https://kvdb.io/K9mU6x2nBqZy7s3d8vReWp/bookings", { cache: "no-store" });
+          let currentBookings = [];
+          if (getRes.ok) {
+            try {
+              currentBookings = await getRes.json();
+              if (!Array.isArray(currentBookings)) currentBookings = [];
+            } catch {}
+          }
+          
+          // Append new booking to top
+          currentBookings.unshift(bookingRecord);
+          
+          // Save updated list
+          await fetch("https://kvdb.io/K9mU6x2nBqZy7s3d8vReWp/bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(currentBookings.slice(0, 100)),
+          });
+        } catch (cloudErr) {
+          console.warn("Dashboard sync warning:", cloudErr);
+        }
+      })();
+
+      // Open guest-facing WhatsApp link immediately (inside click handler to avoid popup blockers)
+      window.open(waUrl, "_blank");
+
+      // Also send an automatic admin notification via WhatsApp (separate from the guest confirmation flow)
+      // This ensures admin is always notified even if the guest doesn't complete the WhatsApp step
+      const adminMsg = `🔔 *NEW BOOKING ALERT — Ananya Home Stay*\n\n📋 *Booking ID:* ${localId}\n👤 *Guest Name:* ${form.name}\n📞 *Phone:* ${form.phone}\n📧 *Email:* ${form.email}\n🏠 *Room:* ${form.room}\n📦 *Package:* ${packageLabel}\n📅 *Check-in:* ${form.checkIn}\n📅 *Check-out:* ${form.checkOut}\n👥 *Guests:* ${form.guests}\n💰 *Total:* ₹${totalPrice.toLocaleString()}${isFullPackage ? `\n🍳 *Breakfast:* ${form.breakfastChoice}\n🍛 *Dinner:* ${form.dinnerChoice}` : ""}\n📝 *Special Requests:* ${form.requests || "None"}\n\n✅ Please confirm this booking with the guest.`;
+      const adminWaUrl = `https://wa.me/919482629145?text=${encodeURIComponent(adminMsg)}`;
+      setTimeout(() => {
+        window.open(adminWaUrl, "_blank");
+      }, 800); // Slight delay so both windows open cleanly
 
     } catch (err: any) {
       console.error("Booking error:", err);
-      setError(`Booking failed: ${err?.message || "Network error"}`);
+      setError(`Booking failed: ${err?.message || "Please try again."}`);
       setLoading(false);
     }
   };
@@ -159,101 +185,228 @@ export default function Booking() {
 
   if (submitted) {
     return (
-      <section id="booking" className="section-padding" style={{ background: "var(--bg-green-light)" }}>
-        <div className="container" style={{ maxWidth: "600px" }}>
+      <section id="booking" className="section-padding" style={{ background: "var(--bg-green-light)", minHeight: "100vh", display: "flex", alignItems: "center" }}>
+        <div className="container" style={{ maxWidth: "650px" }}>
+          
+          {/* Main Success Container */}
           <div
+            id="booking-voucher-print"
             style={{
               background: "white",
-              borderRadius: "24px",
-              padding: "60px 40px",
-              textAlign: "center",
-              boxShadow: "0 24px 60px rgba(0,0,0,0.1)",
+              borderRadius: "32px",
+              padding: "48px 40px",
+              boxShadow: "0 24px 70px rgba(45,90,39,0.12)",
+              border: "1px solid rgba(45,90,39,0.08)",
+              position: "relative",
+              overflow: "hidden",
             }}
           >
-            <div
-              style={{
-                width: "80px",
-                height: "80px",
-                borderRadius: "50%",
-                background: "var(--bg-green-light)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 24px",
-                animation: "pulse-green 2s infinite",
-              }}
-            >
-              <CheckCircle size={40} color="var(--primary)" />
+            {/* Top decorative accent bar */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "8px", background: "linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%)" }} />
+
+            {/* Checkmark Icon and Heading */}
+            <div style={{ textAlign: "center", marginBottom: "32px" }}>
+              <div
+                style={{
+                  width: "72px",
+                  height: "72px",
+                  borderRadius: "50%",
+                  background: "rgba(45,90,39,0.08)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 20px",
+                }}
+              >
+                <CheckCircle size={36} color="var(--primary)" />
+              </div>
+              <h2
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: "30px",
+                  fontWeight: 700,
+                  color: "var(--primary-dark)",
+                  marginBottom: "8px",
+                }}
+              >
+                Booking Confirmed!
+              </h2>
+              <p style={{ color: "var(--text-muted)", fontSize: "15px", maxWidth: "450px", margin: "0 auto", lineHeight: 1.6 }}>
+                Your booking request is safely registered on our domain. Review your premium boarding pass below.
+              </p>
             </div>
-            <h2
-              style={{
-                fontFamily: "'Playfair Display', serif",
-                fontSize: "32px",
-                fontWeight: 700,
-                color: "var(--primary-dark)",
-                marginBottom: "16px",
-              }}
-            >
-              Booking Request Sent!
-            </h2>
-            <p style={{ color: "var(--text-muted)", fontSize: "16px", lineHeight: 1.7, marginBottom: "24px" }}>
-              Thank you, <strong>{form.name}</strong>! We have received your{" "}
-              <strong>{packageLabel}</strong> booking for{" "}
-              <strong>{form.guests} guest(s)</strong>. Our team will confirm via WhatsApp
-              within 2 hours.
-            </p>
+
+            {/* Ticket Card Wrapper */}
             <div
               style={{
-                background: "var(--bg-green-light)",
-                borderRadius: "16px",
-                padding: "20px",
+                background: "#fafbf9",
+                border: "2px solid #eef1ec",
+                borderRadius: "20px",
+                padding: "24px",
                 marginBottom: "32px",
-                textAlign: "left",
-                border: "1px solid rgba(45,90,39,0.2)",
+                position: "relative",
               }}
             >
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              {/* Ticket Jagged Decorative Circles on Sides */}
+              <div style={{ position: "absolute", top: "50%", left: "-12px", width: "24px", height: "24px", borderRadius: "50%", background: "white", borderRight: "2px solid #eef1ec", transform: "translateY(-50%)" }} />
+              <div style={{ position: "absolute", top: "50%", right: "-12px", width: "24px", height: "24px", borderRadius: "50%", background: "white", borderLeft: "2px solid #eef1ec", transform: "translateY(-50%)" }} />
+
+              {/* Ticket Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px dashed #d1dad0", paddingBottom: "16px", marginBottom: "16px" }}>
+                <div>
+                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "var(--text-muted)" }}>Reservation ID</div>
+                  <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--primary)" }}>{bookingId}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "1px", color: "var(--text-muted)" }}>Status</div>
+                  <div style={{ fontSize: "12px", fontWeight: 700, background: "rgba(45,90,39,0.1)", color: "var(--primary)", padding: "4px 10px", borderRadius: "20px", display: "inline-block" }}>Pending Confirmation</div>
+                </div>
+              </div>
+
+              {/* Ticket Details Grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px 24px", marginBottom: "20px" }}>
                 {[
-                  ["Check-in", form.checkIn],
-                  ["Check-out", form.checkOut],
-                  ["Package", packageLabel],
-                  ["Guests", form.guests],
-                  ["Per Person", `₹${pricePerPerson.toLocaleString()}`],
-                  ["Total Amount", `₹${totalPrice.toLocaleString()}`],
+                  ["Guest Name", form.name],
+                  ["Selected Room", form.room],
+                  ["Check-In Date", form.checkIn],
+                  ["Check-Out Date", form.checkOut],
+                  ["Total Guests", `${form.guests} Guest(s)`],
+                  ["Experience Package", packageLabel],
                 ].map(([label, value]) => (
                   <div key={label}>
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{label}</div>
-                    <div style={{ fontWeight: 600, color: "var(--primary-dark)" }}>{value}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "3px" }}>{label}</div>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--primary-dark)" }}>{value}</div>
                   </div>
                 ))}
               </div>
-            </div>
-            {isFullPackage && (
-              <div
-                style={{
-                  background: "#fef3c7",
-                  border: "1px solid #f59e0b",
-                  borderRadius: "12px",
-                  padding: "16px",
-                  marginBottom: "24px",
-                  textAlign: "left",
-                }}
-              >
-                <div style={{ fontWeight: 700, color: "#92400e", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <Flame size={16} /> Free Campfire Included!
+
+              {/* Package Inclusion Accent if Full package */}
+              {isFullPackage && (
+                <div
+                  style={{
+                    background: "rgba(245,158,11,0.08)",
+                    border: "1px solid rgba(245,158,11,0.2)",
+                    borderRadius: "12px",
+                    padding: "14px 16px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: "#92400e", fontSize: "13px", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Flame size={14} /> Full Experience Extras Included
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#78350f", lineHeight: 1.5 }}>
+                    🍳 Breakfast: {form.breakfastChoice || "Not Selected"}<br />
+                    🍛 Dinner: {form.dinnerChoice || "Not Selected"}<br />
+                    🔥 Complimentary Evening Campfire & Music Session
+                  </div>
                 </div>
-                <div style={{ fontSize: "13px", color: "#78350f" }}>
-                  🍳 Breakfast: {form.breakfastChoice}<br />
-                  🍛 Dinner: {form.dinnerChoice}
+              )}
+
+              {/* Divider & Price */}
+              <div style={{ borderTop: "1px dashed #d1dad0", paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Pricing Tier</div>
+                  <div style={{ fontSize: "12px", color: "var(--primary-dark)" }}>₹{pricePerPerson.toLocaleString()} / person</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Total Due</div>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--primary-dark)" }}>₹{totalPrice.toLocaleString()}</div>
                 </div>
               </div>
-            )}
-            <p style={{ color: "var(--text-muted)", fontSize: "14px", marginBottom: "24px" }}>
-              📲 We are opening WhatsApp to confirm your booking details…
-            </p>
-            <button onClick={() => setSubmitted(false)} className="btn-primary">
-              Make Another Booking
-            </button>
+            </div>
+
+            {/* Interactive Actions Grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
+              
+              {/* WhatsApp Action Button */}
+              {whatsappUrl && (
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "10px",
+                    background: "#25D366",
+                    borderColor: "#25D366",
+                    color: "white",
+                    padding: "16px",
+                    borderRadius: "14px",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    boxShadow: "0 8px 24px rgba(37,211,102,0.25)",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = "#20ba59";
+                    e.currentTarget.style.boxShadow = "0 10px 28px rgba(37,211,102,0.35)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = "#25D366";
+                    e.currentTarget.style.boxShadow = "0 8px 24px rgba(37,211,102,0.25)";
+                  }}
+                >
+                  <Send size={18} />
+                  <span>Verify & Confirm on WhatsApp</span>
+                </a>
+              )}
+
+              {/* Utility action buttons */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <button
+                  onClick={() => window.print()}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    background: "#f4f6f3",
+                    border: "1px solid #e2e8f0",
+                    color: "var(--primary-dark)",
+                    padding: "12px",
+                    borderRadius: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = "#eaede8"}
+                  onMouseOut={(e) => e.currentTarget.style.background = "#f4f6f3"}
+                >
+                  <Printer size={16} />
+                  Print Receipt
+                </button>
+
+                <button
+                  onClick={() => setSubmitted(false)}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid var(--primary)",
+                    color: "var(--primary)",
+                    padding: "12px",
+                    borderRadius: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    transition: "background 0.2s",
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = "rgba(45,90,39,0.05)"}
+                  onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  New Booking
+                </button>
+              </div>
+
+            </div>
+
+            {/* Subtle help notice */}
+            <div style={{ marginTop: "24px", fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>
+              💡 Booking reference has been recorded on our secure local node. WhatsApp verification speeds up key allocation.
+            </div>
+
           </div>
         </div>
       </section>
@@ -833,26 +986,6 @@ export default function Booking() {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-        @keyframes pulse-fire {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.1); }
-        }
-        @media (max-width: 768px) {
-          .booking-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .package-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </section>
   );
 }

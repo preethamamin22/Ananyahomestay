@@ -3,10 +3,10 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, BedDouble, Calendar, Star, BarChart3,
   LogOut, Plus, Pencil, Trash2, CheckCircle, XCircle, Eye,
-  TrendingUp, Users, DollarSign, Hotel, Menu, X,
+  TrendingUp, Users, DollarSign, Hotel, Menu, X, Camera,
 } from "lucide-react";
 
-import { getDashboardData, getDashboardStats, updateBookingStatus as updateBooking, updateReviewStatus as updateReview, deleteReviewAction } from "./actions";
+import { getDashboardData, getDashboardStats, updateBookingStatus as updateBooking, updateReviewStatus as updateReview, deleteReviewAction, updateRoomPrice } from "./actions";
 
 type BookingType = { id: string, name: string, room: string, checkin: string, checkout: string, guests: number, total: number, status: string, phone: string };
 type ReviewType = { id: number, name: string, rating: number, review: string, date: string, status: string };
@@ -25,6 +25,11 @@ export default function AdminDashboard() {
   const [bookings, setBookings] = useState<BookingType[]>([]);
   const [reviews, setReviews] = useState<ReviewType[]>([]);
   const [rooms, setRooms] = useState<RoomType[]>([]);
+  const [editingRoom, setEditingRoom] = useState<string | null>(null);
+  const [editRoomForm, setEditRoomForm] = useState<{ price: string; capacity: string }>({ price: "", capacity: "" });
+  const [roomSaving, setRoomSaving] = useState(false);
+  const [roomPhotos, setRoomPhotos] = useState<Record<string, string>>({});
+  const [photoUploading, setPhotoUploading] = useState<string | null>(null);
 
   const [stats, setStats] = useState({
     totalBookings: 0,
@@ -46,6 +51,15 @@ export default function AdminDashboard() {
         occupancyRate: statsData.occupancyRate,
       });
     });
+    // Load stored room photos from cloud
+    fetch('/api/room-photo')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.photos) {
+          setRoomPhotos(data.photos);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Screen size check for mobile responsiveness
@@ -103,6 +117,46 @@ export default function AdminDashboard() {
   const deleteReview = async (id: number) => {
     await deleteReviewAction(id);
     setReviews(prev => prev.filter(r => r.id !== id));
+  };
+
+  const startEditRoom = (room: RoomType) => {
+    setEditingRoom(room.id);
+    setEditRoomForm({ price: String(room.price), capacity: String(room.capacity) });
+  };
+
+  const cancelEditRoom = () => {
+    setEditingRoom(null);
+    setEditRoomForm({ price: "", capacity: "" });
+  };
+
+  const saveRoomPrice = async (roomId: string) => {
+    const price = parseInt(editRoomForm.price);
+    const capacity = parseInt(editRoomForm.capacity);
+    if (isNaN(price) || price < 0 || isNaN(capacity) || capacity < 1) return;
+    setRoomSaving(true);
+    await updateRoomPrice(roomId, price, capacity);
+    setRooms(prev => prev.map(r => r.id === roomId ? { ...r, price, capacity } : r));
+    setRoomSaving(false);
+    setEditingRoom(null);
+  };
+
+  const handleRoomPhotoUpload = async (roomId: string, file: File) => {
+    setPhotoUploading(roomId);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('roomId', roomId);
+      const res = await fetch('/api/room-photo', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.success && data.dataUrl) {
+        setRoomPhotos(prev => ({ ...prev, [roomId]: data.dataUrl }));
+      } else if (!data.success && data.error) {
+        alert(data.error);
+      }
+    } catch (e) {
+      console.error('Photo upload failed', e);
+    }
+    setPhotoUploading(null);
   };
 
   // Login screen
@@ -732,76 +786,213 @@ export default function AdminDashboard() {
                     style={{
                       background: "white",
                       borderRadius: "16px",
-                      padding: isMobile ? "20px" : "24px",
+                      overflow: "hidden",
                       boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-                      display: "flex",
-                      flexDirection: isMobile ? "column" : "row",
-                      alignItems: isMobile ? "stretch" : "center",
-                      gap: isMobile ? "16px" : "24px",
+                      border: editingRoom === room.id ? "2px solid var(--primary)" : "1px solid var(--border)",
+                      transition: "border 0.2s ease",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1 }}>
-                      <div
-                        style={{
-                          width: "56px",
-                          height: "56px",
-                          borderRadius: "14px",
-                          background: "var(--bg-green-light)",
+                    {/* Room photo strip */}
+                    <div style={{ position: "relative", height: "160px", background: "#f1f5f9", overflow: "hidden" }}>
+                      {roomPhotos[room.id] ? (
+                        <img
+                          src={roomPhotos[room.id]}
+                          alt={room.name}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: "100%",
+                          height: "100%",
                           display: "flex",
+                          flexDirection: "column",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: "24px",
-                          flexShrink: 0,
+                          gap: "8px",
+                          color: "var(--text-muted)",
+                          fontSize: "13px",
+                          background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+                        }}>
+                          <span style={{ fontSize: "40px" }}>🛏️</span>
+                          <span>No photo uploaded</span>
+                        </div>
+                      )}
+                      {/* Photo upload overlay button */}
+                      <label
+                        htmlFor={`photo-upload-${room.id}`}
+                        style={{
+                          position: "absolute",
+                          bottom: "10px",
+                          right: "10px",
+                          background: "rgba(0,0,0,0.65)",
+                          color: "white",
+                          padding: "6px 14px",
+                          borderRadius: "50px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          backdropFilter: "blur(4px)",
+                          transition: "background 0.2s",
                         }}
+                        title="Change room photo"
                       >
-                        🛏️
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "17px" }}>{room.name}</div>
-                        <div style={{ color: "var(--text-muted)", fontSize: "14px" }}>
-                          Capacity: {room.capacity} guests · {room.bookings} total bookings
-                        </div>
-                      </div>
+                        {photoUploading === room.id ? (
+                          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{
+                              width: "12px", height: "12px",
+                              border: "2px solid rgba(255,255,255,0.4)",
+                              borderTopColor: "white",
+                              borderRadius: "50%",
+                              animation: "spin 0.8s linear infinite",
+                              display: "inline-block"
+                            }} />
+                            Uploading...
+                          </span>
+                        ) : (
+                          <><Camera size={12} /> Change Photo</>
+                        )}
+                      </label>
+                      <input
+                        id={`photo-upload-${room.id}`}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) handleRoomPhotoUpload(room.id, file);
+                          e.target.value = "";
+                        }}
+                      />
                     </div>
-                    
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: "16px",
-                        borderTop: isMobile ? "1px solid var(--border)" : "none",
-                        paddingTop: isMobile ? "16px" : 0,
-                      }}
-                    >
-                      <div style={{ textAlign: isMobile ? "left" : "right" }}>
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "22px", fontWeight: 700, color: "var(--primary)" }}>
-                          ₹{room.price.toLocaleString()}
+
+                    {/* Room info */}
+                    <div style={{ padding: isMobile ? "16px" : "20px 24px" }}>
+                      {editingRoom === room.id ? (
+                        /* Inline edit form */
+                        <div>
+                          <div style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "17px", marginBottom: "16px" }}>
+                            ✏️ Edit — {room.name}
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                            <div>
+                              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Price per night (₹)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={editRoomForm.price}
+                                onChange={e => setEditRoomForm(f => ({ ...f, price: e.target.value }))}
+                                className="input-field"
+                                style={{ fontFamily: "'Playfair Display', serif", fontSize: "18px", fontWeight: 700, color: "var(--primary)" }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Max Guests</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="20"
+                                value={editRoomForm.capacity}
+                                onChange={e => setEditRoomForm(f => ({ ...f, capacity: e.target.value }))}
+                                className="input-field"
+                                style={{ fontSize: "18px", fontWeight: 700, color: "var(--primary-dark)" }}
+                              />
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: "10px" }}>
+                            <button
+                              onClick={() => saveRoomPrice(room.id)}
+                              disabled={roomSaving}
+                              style={{
+                                background: "var(--primary)",
+                                color: "white",
+                                border: "none",
+                                padding: "10px 20px",
+                                borderRadius: "10px",
+                                cursor: roomSaving ? "not-allowed" : "pointer",
+                                fontWeight: 700,
+                                fontSize: "14px",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                opacity: roomSaving ? 0.7 : 1,
+                              }}
+                            >
+                              <CheckCircle size={16} />
+                              {roomSaving ? "Saving..." : "Save Changes"}
+                            </button>
+                            <button
+                              onClick={cancelEditRoom}
+                              style={{
+                                background: "#f1f5f9",
+                                color: "var(--text-dark)",
+                                border: "1px solid var(--border)",
+                                padding: "10px 20px",
+                                borderRadius: "10px",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                fontSize: "14px",
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>per night</div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span
-                          style={{
-                            padding: "6px 14px",
-                            borderRadius: "50px",
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            background: room.status === "occupied" ? "#fef08a" : "#bbf7d0",
-                            color: room.status === "occupied" ? "#854d0e" : "#166534",
-                          }}
-                        >
-                          {room.status}
-                        </span>
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <button style={{ background: "var(--bg-green-light)", border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer", color: "var(--primary)", display: "flex" }}>
-                            <Pencil size={16} />
-                          </button>
-                          <button style={{ background: "#fee2e2", border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer", color: "#dc2626", display: "flex" }}>
-                            <Trash2 size={16} />
-                          </button>
+                      ) : (
+                        /* Normal view */
+                        <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", gap: isMobile ? "14px" : "24px" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, color: "var(--primary-dark)", fontSize: "17px" }}>{room.name}</div>
+                            <div style={{ color: "var(--text-muted)", fontSize: "14px", marginTop: "4px" }}>
+                              Max {room.capacity} guests · {room.bookings} total bookings
+                            </div>
+                          </div>
+                          <div style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: isMobile ? "space-between" : "flex-end",
+                            gap: "16px",
+                            borderTop: isMobile ? "1px solid var(--border)" : "none",
+                            paddingTop: isMobile ? "14px" : 0,
+                          }}>
+                            <div style={{ textAlign: "right" }}>
+                              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "22px", fontWeight: 700, color: "var(--primary)" }}>
+                                ₹{room.price.toLocaleString()}
+                              </div>
+                              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>per night</div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <span style={{
+                                padding: "6px 14px",
+                                borderRadius: "50px",
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                background: room.status === "occupied" ? "#fef08a" : "#bbf7d0",
+                                color: room.status === "occupied" ? "#854d0e" : "#166534",
+                              }}>
+                                {room.status}
+                              </span>
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button
+                                  onClick={() => startEditRoom(room)}
+                                  title="Edit price & capacity"
+                                  style={{ background: "var(--bg-green-light)", border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer", color: "var(--primary)", display: "flex" }}
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                                <button
+                                  style={{ background: "#fee2e2", border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer", color: "#dc2626", display: "flex" }}
+                                  title="Delete room"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 ))}

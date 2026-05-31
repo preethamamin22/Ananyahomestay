@@ -522,3 +522,19 @@ body {
   transform: translateY(-4px);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.14);
 }
+
+/* Booking component specific styles */
+@keyframes pulse-fire {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@media (max-width: 768px) {
+  .booking-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .package-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
