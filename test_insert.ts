@@ -5,7 +5,7 @@ async function main() {
   console.log("Testing insert in workspace...");
   try {
     const roomRecord = await prisma.room.findFirst({
-      where: { name: "Deluxe Garden Room" },
+      where: { name: "Deluxe Room" },
       select: { id: true }
     });
 

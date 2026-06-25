@@ -1,12 +1,13 @@
 "use client";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 import { Wifi, Car, Utensils, Droplets, Wind, Tv, Coffee, TreePine, Users, Bed } from "lucide-react";
 
 const rooms = [
   {
     id: "family-suite",
     name: "Family Suite",
-    image: "/real-common.jpg",
+    image: "/family-suite.jpg",
     description: "Spacious family suite featuring 2 Double Beds — ideal for families or groups of friends. Enjoy a warm, homely atmosphere with connecting living space and authentic Coorg decor.",
     size: "550 sq ft",
     capacity: 4,
@@ -19,7 +20,7 @@ const rooms = [
   {
     id: "deluxe-room",
     name: "Deluxe Room",
-    image: "/real-living.jpg",
+    image: "/deluxe-room.jpg",
     description: "Elegant deluxe room with 1 King Size Bed — perfect for couples seeking extra comfort and privacy. Wake up to misty plantation views and serene Coorg mornings.",
     size: "350 sq ft",
     capacity: 2,
@@ -44,6 +45,22 @@ const amenityIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Rooms() {
+  const [roomList, setRoomList] = useState(rooms);
+
+  useEffect(() => {
+    fetch('/api/room-photo')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.photos) {
+          setRoomList(prev => prev.map(r => ({
+            ...r,
+            image: data.photos[r.id] || r.image
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <section id="rooms" className="section-padding" style={{ background: "white" }}>
       <div className="container">
@@ -120,7 +137,7 @@ export default function Rooms() {
           }}
           className="rooms-grid"
         >
-          {rooms.map((room) => (
+          {roomList.map((room) => (
             <div key={room.id} className="card" style={{ border: "1px solid var(--border)" }}>
               {/* Image */}
               <div style={{ position: "relative", height: "260px" }}>
@@ -128,6 +145,7 @@ export default function Rooms() {
                   src={room.image}
                   alt={room.name}
                   fill
+                  unoptimized={true}
                   style={{ objectFit: "cover" }}
                 />
                 {/* Badge */}

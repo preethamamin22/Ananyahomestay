@@ -48,7 +48,7 @@ export default function Booking() {
     checkIn: "",
     checkOut: "",
     guests: "2",
-    room: "Deluxe Garden Room",
+    room: "Deluxe Room",
     packageType: "full-experience" as PackageType,
     breakfastChoice: "",
     dinnerChoice: "",
@@ -604,9 +604,8 @@ export default function Booking() {
                   🏡 Select Room *
                 </label>
                 <select name="room" value={form.room} onChange={handleChange} className="input-field">
-                  <option value="Deluxe Garden Room">Deluxe Garden Room (Max 2 Guests)</option>
+                  <option value="Deluxe Room">Deluxe Room (Max 2 Guests)</option>
                   <option value="Family Suite">Family Suite (Max 4 Guests)</option>
-                  <option value="Cozy Standard Room">Cozy Standard Room (Max 2 Guests)</option>
                 </select>
               </div>
 

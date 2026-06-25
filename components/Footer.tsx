@@ -202,7 +202,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Ananya Home Stay, Coorg. All rights reserved.
           </p>
           <p style={{ fontSize: "14px", opacity: 0.65, display: "flex", alignItems: "center", gap: "6px" }}>
-            Created by <a href="https://preethamamin.vercel.app/" target="_blank" rel="noopener noreferrer" style={{ color: "var(--gold)", textDecoration: "none", fontWeight: 600 }}>Preetham</a>
+            Created by <a href="https://www.outvoxsolution.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--gold)", textDecoration: "none", fontWeight: 600 }}>Outvox Solution</a>
           </p>
           <div style={{ display: "flex", gap: "20px" }}>
             {["Privacy Policy", "Terms of Service", "Sitemap"].map((link) => (

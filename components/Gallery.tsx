@@ -5,10 +5,15 @@ import { X } from "lucide-react";
 
 const images = [
   { src: "/real-exterior.jpg", alt: "Ananya Home Stay – Front view of the property in Parane, Coorg" },
+  { src: "/gallery-plantation.jpg", alt: "Beautiful view of the homestay and coffee plantation" },
   { src: "/real-common.jpg", alt: "Spacious living and dining room with wooden furniture" },
-  { src: "/real-living.jpg", alt: "Cozy bedroom with wooden ceiling and red curtains" },
+  { src: "/gallery-bedding.jpg", alt: "Cozy deluxe room interior showcasing comfortable bedding" },
+  { src: "/deluxe-room.jpg", alt: "Elegant Deluxe Room with plantation views" },
+  { src: "/gallery-nature.jpg", alt: "Scenic surrounding nature and mist-covered hills of Coorg" },
   { src: "/real-garden.jpg", alt: "Guest sitting area with traditional Kodava wooden seating" },
-  { src: "/real-bedroom.jpg", alt: "Clean marble-tiled attached bathroom" },
+  { src: "/family-suite.jpg", alt: "Spacious Family Suite bedroom featuring comfortable beds" },
+  { src: "/family-suite-1.jpg", alt: "Cozy sitting area and wooden details inside the Family Suite" },
+  { src: "/family-suite-2.jpg", alt: "Warm and welcoming interior of the Family Suite room" },
 ];
 
 export default function Gallery() {
@@ -26,25 +31,35 @@ export default function Gallery() {
           <p className="section-subtitle" style={{ marginTop: "16px" }}>
             Every frame tells a story of nature, warmth, and the authentic Coorg experience.
           </p>
+          <div style={{ marginTop: "24px" }}>
+            <a href="https://photos.app.goo.gl/M8UGNLN5gMbSXEpv5" target="_blank" rel="noopener noreferrer" className="btn-primary">
+              View Full Gallery
+            </a>
+          </div>
         </div>
 
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(12, 1fr)",
-            gridTemplateRows: "repeat(2, 280px)",
+            gridAutoRows: "280px",
             gap: "12px",
           }}
           className="gallery-grid"
         >
           {images.map((img, i) => {
-            // Spanning: [0]=col 1-7 row 1-2, [1]=col 8-12 row 1, [2]=col 8-10 row 2, [3]=col 11-12 row 2, [4]=hidden on desktop shown in mobile
+            // Spanning logic for 10 images
             const spans = [
-              { gridColumn: "1 / 8", gridRow: "1 / 3" },
-              { gridColumn: "8 / 13", gridRow: "1 / 2" },
-              { gridColumn: "8 / 11", gridRow: "2 / 3" },
-              { gridColumn: "11 / 13", gridRow: "2 / 3" },
-              { display: "none" as const },
+              { gridColumn: "1 / 8", gridRow: "span 2" },
+              { gridColumn: "8 / 13", gridRow: "span 1" },
+              { gridColumn: "8 / 11", gridRow: "span 1" },
+              { gridColumn: "11 / 13", gridRow: "span 1" },
+              { gridColumn: "1 / 6", gridRow: "span 1" },
+              { gridColumn: "6 / 13", gridRow: "span 1" },
+              { gridColumn: "1 / 8", gridRow: "span 1" },
+              { gridColumn: "8 / 13", gridRow: "span 1" },
+              { gridColumn: "1 / 5", gridRow: "span 1" },
+              { gridColumn: "5 / 13", gridRow: "span 1" },
             ];
             const span = spans[i] || { display: "none" as const };
 
@@ -67,6 +82,7 @@ export default function Gallery() {
                   src={img.src}
                   alt={img.alt}
                   fill
+                  unoptimized={img.src.startsWith('http')}
                   style={{ objectFit: "cover", transition: "transform 0.5s ease" }}
                   className="gallery-img"
                 />
@@ -153,6 +169,7 @@ export default function Gallery() {
                 alt="Gallery preview"
                 width={900}
                 height={600}
+                unoptimized={lightbox.startsWith('http')}
                 style={{ width: "100%", height: "auto", display: "block", maxHeight: "85vh", objectFit: "contain" }}
               />
             </div>

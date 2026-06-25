@@ -1,12 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { writeFile, readFile, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
+import path from 'path';
 
-// Serverless-compatible room photo storage using kvdb.io cloud store.
-// Photos are stored as base64 data URLs under the key "room-photos".
-// This works on Vercel and any read-only filesystem environment.
+// File-system based room photo storage.
+// Photos are saved to public/uploads/ as named files (e.g. family-suite-admin.jpg).
+// This is zero-dependency, works on local dev without any Prisma schema changes,
+// and the photos are served as static files by Next.js.
 
-const KVDB_BUCKET = 'K9mU6x2nBqZy7s3d8vReWp';
-const KVDB_KEY = 'room-photos';
-const KVDB_URL = `https://kvdb.io/${KVDB_BUCKET}/${KVDB_KEY}`;
+const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
+const PHOTOS_JSON = path.join(process.cwd(), 'public', 'uploads', 'room-photos.json');
+
+async function ensureUploadDir() {
+  if (!existsSync(UPLOAD_DIR)) {
+    await mkdir(UPLOAD_DIR, { recursive: true });
+  }
+}
+
+async function readPhotosMap(): Promise<Record<string, string>> {
+  try {
+    if (existsSync(PHOTOS_JSON)) {
+      const raw = await readFile(PHOTOS_JSON, 'utf-8');
+      return JSON.parse(raw);
+    }
+  } catch {}
+  return {};
+}
+
+async function writePhotosMap(map: Record<string, string>) {
+  await writeFile(PHOTOS_JSON, JSON.stringify(map, null, 2), 'utf-8');
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,61 +45,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'File must be an image' }, { status: 400 });
     }
 
-    // Limit file size to 800KB to keep base64 within kvdb limits (~1MB)
-    if (file.size > 800 * 1024) {
-      return NextResponse.json({ success: false, error: 'Image too large. Please use an image under 800KB.' }, { status: 400 });
-    }
+    await ensureUploadDir();
 
-    // Convert to base64 data URL
-    const buffer = await file.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString('base64');
-    const dataUrl = `data:${file.type};base64,${base64}`;
+    // Determine extension from MIME type
+    const ext = file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+    const filename = `${roomId}-admin.${ext}`;
+    const filepath = path.join(UPLOAD_DIR, filename);
 
-    // Load existing photos map from kvdb
-    let photosMap: Record<string, string> = {};
-    try {
-      const getRes = await fetch(KVDB_URL, { cache: 'no-store' });
-      if (getRes.ok) {
-        const data = await getRes.json();
-        if (data && typeof data === 'object' && !Array.isArray(data)) {
-          photosMap = data;
-        }
-      }
-    } catch {}
+    // Write file to disk
+    const bytes = await file.arrayBuffer();
+    await writeFile(filepath, Buffer.from(bytes));
 
-    // Update this room's photo
-    photosMap[roomId] = dataUrl;
+    // Store the public URL in our photos map
+    const publicUrl = `/uploads/${filename}?v=${Date.now()}`;
+    const photosMap = await readPhotosMap();
+    photosMap[roomId] = publicUrl;
+    await writePhotosMap(photosMap);
 
-    // Save back to kvdb
-    const putRes = await fetch(KVDB_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(photosMap),
-    });
-
-    if (!putRes.ok) {
-      throw new Error('Failed to save photo to cloud store');
-    }
-
-    console.log(`📷 Room photo saved to cloud for room: ${roomId}`);
-    return NextResponse.json({ success: true, dataUrl });
+    console.log(`📷 Room photo saved to disk: ${filepath}`);
+    return NextResponse.json({ success: true, dataUrl: publicUrl });
 
   } catch (err: any) {
-    console.error('❌ Room photo upload error:', err?.message);
-    return NextResponse.json({ success: false, error: 'Upload failed. Please try again.' }, { status: 500 });
+    console.error('❌ Room photo upload error:', err?.message || err);
+    return NextResponse.json({ success: false, error: 'Upload failed. ' + (err?.message || 'Server error.') }, { status: 500 });
   }
 }
 
 export async function GET() {
   try {
-    const getRes = await fetch(KVDB_URL, { cache: 'no-store' });
-    if (getRes.ok) {
-      const data = await getRes.json();
-      if (data && typeof data === 'object' && !Array.isArray(data)) {
-        return NextResponse.json({ success: true, photos: data });
-      }
-    }
-    return NextResponse.json({ success: true, photos: {} });
+    const photos = await readPhotosMap();
+    return NextResponse.json({ success: true, photos });
   } catch {
     return NextResponse.json({ success: true, photos: {} });
   }

@@ -6,7 +6,7 @@ import {
   TrendingUp, Users, DollarSign, Hotel, Menu, X, Camera,
 } from "lucide-react";
 
-import { getDashboardData, getDashboardStats, updateBookingStatus as updateBooking, updateReviewStatus as updateReview, deleteReviewAction, updateRoomPrice } from "./actions";
+import { getDashboardData, getDashboardStats, updateBookingStatus as updateBooking, updateReviewStatus as updateReview, deleteReviewAction, updateRoomPrice, createRoomAction, deleteRoomAction } from "./actions";
 
 type BookingType = { id: string, name: string, room: string, checkin: string, checkout: string, guests: number, total: number, status: string, phone: string };
 type ReviewType = { id: number, name: string, rating: number, review: string, date: string, status: string };
@@ -29,6 +29,10 @@ export default function AdminDashboard() {
   const [editRoomForm, setEditRoomForm] = useState<{ price: string; capacity: string }>({ price: "", capacity: "" });
   const [roomSaving, setRoomSaving] = useState(false);
   const [roomPhotos, setRoomPhotos] = useState<Record<string, string>>({});
+  const [showAddRoom, setShowAddRoom] = useState(false);
+  const [addRoomForm, setAddRoomForm] = useState({ name: "", price: "1200", capacity: "2", status: "available" });
+  const [addRoomSaving, setAddRoomSaving] = useState(false);
+  const [addRoomError, setAddRoomError] = useState("");
   const [photoUploading, setPhotoUploading] = useState<string | null>(null);
 
   const [stats, setStats] = useState({
@@ -138,6 +142,35 @@ export default function AdminDashboard() {
     setRooms(prev => prev.map(r => r.id === roomId ? { ...r, price, capacity } : r));
     setRoomSaving(false);
     setEditingRoom(null);
+  };
+
+  const handleAddRoom = async () => {
+    if (!addRoomForm.name.trim()) { setAddRoomError("Room name is required."); return; }
+    const price = parseInt(addRoomForm.price);
+    const capacity = parseInt(addRoomForm.capacity);
+    if (isNaN(price) || price < 0) { setAddRoomError("Please enter a valid price."); return; }
+    if (isNaN(capacity) || capacity < 1) { setAddRoomError("Please enter a valid capacity."); return; }
+    setAddRoomSaving(true);
+    setAddRoomError("");
+    const result = await createRoomAction({ name: addRoomForm.name.trim(), price, capacity, status: addRoomForm.status });
+    if (result.success && result.room) {
+      setRooms(prev => [...prev, result.room!]);
+      setShowAddRoom(false);
+      setAddRoomForm({ name: "", price: "1200", capacity: "2", status: "available" });
+    } else {
+      setAddRoomError(result.error || "Failed to create room.");
+    }
+    setAddRoomSaving(false);
+  };
+
+  const handleDeleteRoom = async (roomId: string, roomName: string) => {
+    if (!confirm(`Delete room "${roomName}"? This cannot be undone.`)) return;
+    const result = await deleteRoomAction(roomId);
+    if (result.success) {
+      setRooms(prev => prev.filter(r => r.id !== roomId));
+    } else {
+      alert(result.error || "Failed to delete room.");
+    }
   };
 
   const handleRoomPhotoUpload = async (roomId: string, file: File) => {
@@ -775,7 +808,7 @@ export default function AdminDashboard() {
           {activeTab === "rooms" && (
             <div>
               <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "20px" }}>
-                <button className="btn-primary" style={{ gap: "8px" }}>
+                <button className="btn-primary" style={{ gap: "8px" }} onClick={() => { setShowAddRoom(true); setAddRoomError(""); }}>
                   <Plus size={18} /> Add New Room
                 </button>
               </div>
@@ -983,6 +1016,7 @@ export default function AdminDashboard() {
                                   <Pencil size={16} />
                                 </button>
                                 <button
+                                  onClick={() => handleDeleteRoom(room.id, room.name)}
                                   style={{ background: "#fee2e2", border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer", color: "#dc2626", display: "flex" }}
                                   title="Delete room"
                                 >
@@ -997,6 +1031,130 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+
+              {/* Add New Room Modal */}
+              {showAddRoom && (
+                <div
+                  onClick={() => setShowAddRoom(false)}
+                  style={{
+                    position: "fixed", inset: 0,
+                    background: "rgba(0,0,0,0.5)",
+                    backdropFilter: "blur(4px)",
+                    zIndex: 100,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "24px",
+                  }}
+                >
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      background: "white",
+                      borderRadius: "24px",
+                      padding: "36px",
+                      width: "100%",
+                      maxWidth: "480px",
+                      boxShadow: "0 32px 80px rgba(0,0,0,0.25)",
+                      position: "relative",
+                    }}
+                  >
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
+                      <div>
+                        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "22px", fontWeight: 700, color: "var(--primary-dark)", marginBottom: "4px" }}>Add New Room</h2>
+                        <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Create a new room listing for your property</p>
+                      </div>
+                      <button onClick={() => setShowAddRoom(false)} style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: "36px", height: "36px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {/* Form */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      <div>
+                        <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-dark)", display: "block", marginBottom: "8px" }}>Room Name *</label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="e.g. Mountain View Suite"
+                          value={addRoomForm.name}
+                          onChange={e => setAddRoomForm(f => ({ ...f, name: e.target.value }))}
+                          onKeyDown={e => e.key === 'Enter' && handleAddRoom()}
+                          autoFocus
+                        />
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <div>
+                          <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-dark)", display: "block", marginBottom: "8px" }}>Price per Night (₹) *</label>
+                          <input
+                            type="number"
+                            min="0"
+                            className="input-field"
+                            value={addRoomForm.price}
+                            onChange={e => setAddRoomForm(f => ({ ...f, price: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-dark)", display: "block", marginBottom: "8px" }}>Max Guests *</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="20"
+                            className="input-field"
+                            value={addRoomForm.capacity}
+                            onChange={e => setAddRoomForm(f => ({ ...f, capacity: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-dark)", display: "block", marginBottom: "8px" }}>Status</label>
+                        <select
+                          className="input-field"
+                          value={addRoomForm.status}
+                          onChange={e => setAddRoomForm(f => ({ ...f, status: e.target.value }))}
+                        >
+                          <option value="available">Available</option>
+                          <option value="occupied">Occupied</option>
+                          <option value="maintenance">Maintenance</option>
+                        </select>
+                      </div>
+
+                      {addRoomError && (
+                        <div style={{ background: "#fee2e2", color: "#991b1b", padding: "12px 16px", borderRadius: "10px", fontSize: "13px" }}>
+                          ⚠️ {addRoomError}
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                        <button
+                          onClick={handleAddRoom}
+                          disabled={addRoomSaving}
+                          className="btn-primary"
+                          style={{ flex: 1, justifyContent: "center", opacity: addRoomSaving ? 0.7 : 1, cursor: addRoomSaving ? "not-allowed" : "pointer" }}
+                        >
+                          {addRoomSaving ? (
+                            <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span style={{ width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "white", borderRadius: "50%", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
+                              Creating...
+                            </span>
+                          ) : (
+                            <><Plus size={16} /> Create Room</>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setShowAddRoom(false)}
+                          style={{ padding: "12px 20px", background: "#f1f5f9", border: "1px solid var(--border)", borderRadius: "12px", cursor: "pointer", fontWeight: 600, fontSize: "14px", color: "var(--text-dark)" }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -60,7 +60,7 @@ export async function getDashboardStats() {
       .filter(b => b.status === 'confirmed' || b.status === 'pending')
       .reduce((sum, b) => sum + (Number(b.guests) || 0), 0);
 
-    const totalRooms = 3;
+    const totalRooms = 4;
     const occupiedRooms = activeGuests > 0 ? 1 : 0;
     const occupancyRate = Math.min(100, Math.round((occupiedRooms / totalRooms) * 100));
 
@@ -91,9 +91,8 @@ export async function getDashboardData() {
         // Auto-seed rooms in DB if empty to guarantee database initial state
         if (rooms.length === 0) {
           const defaultRooms = [
-            { id: "deluxe-garden-room", name: "Deluxe Garden Room", price: 1200, capacity: 2, status: "available" },
+            { id: "deluxe-room", name: "Deluxe Room", price: 1200, capacity: 2, status: "available" },
             { id: "family-suite", name: "Family Suite", price: 1200, capacity: 4, status: "available" },
-            { id: "cozy-standard-room", name: "Cozy Standard Room", price: 800, capacity: 2, status: "available" },
           ];
           for (const r of defaultRooms) {
             await prisma.room.upsert({
@@ -121,9 +120,8 @@ export async function getDashboardData() {
 
     if (rooms.length === 0) {
       rooms = [
-        { id: "deluxe-garden-room", name: "Deluxe Garden Room", price: 1200, capacity: 2, status: "available", bookingsCount: bookingsList.filter(b => b.room === "Deluxe Garden Room").length },
+        { id: "deluxe-room", name: "Deluxe Room", price: 1200, capacity: 2, status: "available", bookingsCount: bookingsList.filter(b => b.room === "Deluxe Room").length },
         { id: "family-suite", name: "Family Suite", price: 1200, capacity: 4, status: "available", bookingsCount: bookingsList.filter(b => b.room === "Family Suite").length },
-        { id: "cozy-standard-room", name: "Cozy Standard Room", price: 800, capacity: 2, status: "available", bookingsCount: bookingsList.filter(b => b.room === "Cozy Standard Room").length },
       ];
     }
 
@@ -173,6 +171,51 @@ export async function updateRoomPrice(id: string, price: number, capacity: numbe
   } catch (err: any) {
     console.error('Error updating room price:', err);
     return { success: false, error: err?.message || 'Failed to update room price' };
+  }
+}
+
+export async function createRoomAction(data: {
+  name: string;
+  price: number;
+  capacity: number;
+  status: string;
+}) {
+  try {
+    const prisma = await getPrisma();
+    if (!prisma) return { success: false, error: 'Database client not available' };
+    const id = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const existing = await prisma.room.findUnique({ where: { id } });
+    if (existing) {
+      return { success: false, error: `A room with name "${data.name}" already exists.` };
+    }
+    const room = await prisma.room.create({
+      data: { id, name: data.name, price: data.price, capacity: data.capacity, status: data.status },
+    });
+    revalidatePath('/admin');
+    return { success: true, room: { id: room.id, name: room.name, price: room.price, capacity: room.capacity, status: room.status, bookings: 0 } };
+  } catch (err: any) {
+    console.error('Error creating room:', err);
+    return { success: false, error: err?.message || 'Failed to create room' };
+  }
+}
+
+export async function deleteRoomAction(id: string) {
+  try {
+    const prisma = await getPrisma();
+    if (!prisma) return { success: false, error: 'Database client not available' };
+    // Check for active bookings before deleting
+    const activeBookings = await prisma.booking.count({
+      where: { roomId: id, status: { in: ['pending', 'confirmed'] } }
+    });
+    if (activeBookings > 0) {
+      return { success: false, error: `Cannot delete: ${activeBookings} active booking(s) exist for this room.` };
+    }
+    await prisma.room.delete({ where: { id } });
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error deleting room:', err);
+    return { success: false, error: err?.message || 'Failed to delete room' };
   }
 }
 

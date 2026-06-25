@@ -24,6 +24,10 @@ const faqs = [
     a: "We are located approximately 2–3 km from Madikeri town centre, easily accessible by road. We can also arrange local transport for your convenience.",
   },
   {
+    q: "What is the nearest airport to the homestay?",
+    a: "The nearest airport is Kannur International Airport (CNN) at approx. 90 km. Other major airports are Mangaluru International Airport (IXE) at approx. 140 km and Bengaluru Kempegowda International Airport (BLR) at approx. 280 km.",
+  },
+  {
     q: "Can you arrange guided tours or sightseeing?",
     a: "Yes! We offer guided coffee plantation tours, and can arrange local taxi bookings for popular attractions like Abbey Falls, Dubare Elephant Camp, Talacauvery, and more. Contact us in advance for best rates.",
   },

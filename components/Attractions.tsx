@@ -58,6 +58,14 @@ const attractions = [
     category: "Nature",
   },
   {
+    emoji: "🌊",
+    name: "Irpu Falls",
+    distance: "70 km",
+    description: "A magnificent waterfall nestled in the Brahmagiri range, surrounded by dense forests. Also a famous pilgrimage site associated with the epic Ramayana.",
+    bestTime: "Aug – Jan",
+    category: "Nature",
+  },
+  {
     emoji: "🙏",
     name: "Talacauvery",
     distance: "60 km",
